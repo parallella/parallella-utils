@@ -20,6 +20,6 @@ To submit a project for inclusion:
 
 ### Note
 
-* The project must build, run and serve as a useful example
+* The project must build, run and serve as a useful utility
 * Basic documentation must be included, e.g. dependencies, building and use
 * Only GPLv3 and BSD 3-clause licensed code will be accepted
