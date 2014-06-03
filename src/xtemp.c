@@ -102,8 +102,10 @@ int InitX() {
   Colormap  colormap;
 
   dpy = XOpenDisplay(NULL);
-  if(dpy == NULL)
+  if(dpy == NULL) {
+    fprintf(stderr, "ERROR: Unable to open X display\n");
     return 1;
+  }
 
   clrBlack = BlackPixel(dpy, DefaultScreen(dpy));
   clrWhite = WhitePixel(dpy, DefaultScreen(dpy));
@@ -372,12 +374,14 @@ int main(int argc, char **argv) {
   
   XInitThreads();
 
-  if(InitX())
+  if(InitX()) {
     return 1;
-  if(GetConstants())
+  } if(GetConstants()) {
     return 2;
-  if(pthread_create(&tidUpdate, NULL, &UpdateThread, NULL))
+  } if(pthread_create(&tidUpdate, NULL, &UpdateThread, NULL)) {
+    fprintf(stderr, "ERROR: Can't create update thread.\n");
     return 3;
+  }
 
   float fTemp;
   GetTemp(&fTemp);
@@ -425,7 +429,7 @@ int main(int argc, char **argv) {
 
       int rc = Redraw();
       if(rc) {
-	fprintf(stderr, "Redraw() returned %d\n", rc);
+	fprintf(stderr, "ERROR: Redraw() returned %d\n", rc);
 	break;
       }
     }
