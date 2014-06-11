@@ -20,4 +20,9 @@ install: install-exec
 install-exec: xtemp
 	install -D xtemp "${DESTDIR}${BINDIR}/xtemp"
 
-.PHONY: clean install install-exec
+uninstall: uninstall-exec
+
+uninstall-exec:
+	rm "${DESTDIR}${BINDIR}/xtemp"
+
+.PHONY: clean install install-exec uninstall uninstall-exec
