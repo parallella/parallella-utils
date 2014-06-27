@@ -1,0 +1,15 @@
+Source: parallella-utils
+Section: admin
+Priority: optional
+Maintainer: Andrew Back <andrew@parallella.org>
+Build-Depends: debhelper (>= 5)
+Standards-Version: 3.9.3
+Vcs-Browser: https://github.com/parallella/parallella-utils
+Vcs-Git: https://github.com/parallella/parallella-utils.git
+Homepage: https://github.com/parallella/parallella-utils
+
+Package: parallella-utils
+Architecture: any
+Depends: ${shlibs:Depends},${misc:Depends}
+Description: System utilities for the Parallella board
+ A set of useful system administration utilities for the Parallella computer 
