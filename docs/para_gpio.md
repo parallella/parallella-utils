@@ -92,7 +92,7 @@ Add para_gpio.c to the list of files to be compiled.
       the gpio pin, turning it on for nMSOn milliseconds and then
       off for nMSOff before returning.
 
-## Proposed C+ Class
+## C++ Class
 
 Rather than keep a structure around that gets passed to every function, a
 C++ class encapsulates that information and simplifies the user interface.
@@ -108,16 +108,26 @@ error codes are the same as for the C functions.
       continuing for a total of nNumIDs pins.  If bPorcOrder is false,
       the pins are assigned in numerical order 0, 1, 2, 3...  If true,
       the pin assignments are made in the order of the Porcupine
-      breakout board's single-ended assignments, i.e. 0 2 1 3 4 6 5 7, 
-      so they come out 'nicely' on the headers.
+      breakout board's single-ended assignments, i.e. 0 2 1 3 4 6 5 7,
+      so they come out 'nicely' on the headers.  If using bPorcOrder,
+      do NOT add the offset of 54 for the first external GPIO pin,
+      instead use a startID based at 0.  The offset will be added
+      automatically.
 
-    CParaGpio(int *pIDArray, int nNumIDs) - Constructs a multi-pin GPIO
-      object using the pin numbers defined in the array pIDArray.  The
-      first ID in the array corresponds to the lowest bit in any read
-      or write transaction.
+    CParaGpio(int *pIDArray, int nNumIDs, bool bPorcOrder=false) -
+      Constructs a multi-pin GPIO object using the pin numbers defined
+      in the array pIDArray.  The first ID in the array corresponds to
+      the lowest bit in any read or write transaction.
 
     AddPin(int nID) - Adds a new pin to the object, for multi-pin objects
       this will become the new most-significant bit.
+
+
+    IsOK() - Checks that all pin assignments were successful, returns
+      true if no errors have occurred during pin assignment, including
+      if no pins have been asssigned, returns false otherwise.
+
+    GetNPins() - Returns the number of pins assigned.
 
     SetDirection(para_gpiodir eDir) - Sets the direction for all pins of the object
       based on the enum eDir:
@@ -136,21 +146,26 @@ error codes are the same as for the C functions.
       function always reads the pin levels, it doesn't just return the values
       most recently Set, regardless of direction.
 
-    WaitLevel(int nValue, int nTimeout) - Waits for the given value to be
-      present on the input, meaning it will return immediately if the input
-      is already at the requested value.  Times out after nTimeout seconds
-      if request not satisfied.
-
-    WaitEdge(int nValue, int nTimeout) - Waits for a rising (nValue = 1) or
-      falling (nValue = 0) edge on the input.  Requires an edge, i.e. if
-      the input is already at the requested level it must toggle before this
-      function will return.  Times out after nTimeout seconds if no edge.
-
-    Blink(int nMSOn, nMSOff) - "Blinks" the gpio pin(s) by turning them on
-      for nMSOn milliseconds then then off for nMSOff before returning.
-
     Close() - Releases all pins from the object.  This happens automatically
-      when the object is destroyed.
+      when the object is destroyed.  New pins may be added with AddPin()
+      after calling this functions.
+
+The following functions are not currently implemented:
+
+    WaitLevel(int nPin, int nValue, int nTimeout) - Waits for the given
+      value to be present on the input, meaning it will return immediately
+      if the input is already at the requested value.  Times out after
+      nTimeout seconds if request not satisfied.
+
+    WaitEdge(int nPin, int nValue, int nTimeout) - Waits for a rising 
+      (nValue = 1) or falling (nValue = 0) edge on the input.  Requires
+      an edge, i.e. if the input is already at the requested level it
+      must toggle before this function will return.  Times out after
+      nTimeout seconds if no edge.
+
+    Blink(int nMask, int nMSOn, int nMSOff) - "Blinks" the gpio pin(s) defined
+      in nMask by turning them on for nMSOn milliseconds then then off for 
+      nMSOff before returning.
 
 ## Performance
 

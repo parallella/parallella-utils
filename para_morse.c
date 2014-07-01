@@ -111,7 +111,7 @@ char *arrMorse[] = {
 
 int para_morse(para_gpio *pGpio, char *str, int wpm) {
   int	dottime = 1200/wpm;    // msec per dot
-  int	c, lettergap = 3, wordgap = 7;
+  unsigned c, lettergap = 3, wordgap = 7;
   char	*pcode, *pstr;
 
   for(pstr = str; *pstr; pstr++) {
@@ -120,7 +120,7 @@ int para_morse(para_gpio *pGpio, char *str, int wpm) {
       *pstr -= 'a' - 'A';
 
     c = *pstr - ' ';
-    if(c < 0 || c >= countof(arrMorse)) {
+    if(c >= countof(arrMorse)) {
       fprintf(stderr, "\nIllegal character %d (%c) in string\n", *pstr, *pstr);
       continue;
     }
