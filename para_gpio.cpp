@@ -42,7 +42,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  // on the Porcupine GPIO headers.  Note these IDs must be
  // offset by EXTGPIOSTART!
 static int nPorcOrder[EXTGPIONUM] = {
-   0, 2, 1, 3, 4, 6, 5, 7, 8, 10, 9, 11,
+    0,  2,  1,  3,  4,  6,  5,  7,  8, 10,  9, 11,
    12, 14, 13, 15, 16, 18, 17, 19, 20, 22, 21, 23,
    24, 26, 25, 27, 28, 30, 29, 31, 32, 34, 33, 35,
    36, 38, 37, 39, 40, 42, 41, 43, 44, 46, 45, 47,

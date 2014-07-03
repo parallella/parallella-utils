@@ -2,6 +2,9 @@
 # quickie script to un-export all "leftover" exported GPIO pins
 # Run this as root in /sys/class/gpio
 
+# Provided as-is for any purpose
+#  Fred@Adapteva.com
+
 for file in gpio*
 do
     echo $file

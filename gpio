@@ -1,0 +1,79 @@
+#!/bin/bash
+#  Script to perform various operations on GPIO pins using sysfs
+#  Run this as root in /sys/class/gpio
+
+# Provided as-is for any purpose
+#  Fred@Adapteva.com
+
+# Usage:
+#  gpio OP [N1 [N2]]
+#    OP is one of:
+#       ls     - list direction & value
+#       exp    - export pin(s)
+#       unex   - unexport pin(s)
+#       in|out - set direction
+#       0|1    - set value
+#
+#    N1 is starting GPIO #
+#    N2 is ending GPIO # (N1 and N2 are inclusive)
+#    if N2 is omitted then only N1 is used
+#    if N1 is omitted then all currently exported GPIOs are used
+#    if no arguments are supplied then OP is taken as ls
+
+# TODO: Make this work from a directory other than /sys/class/gpio
+gpdir="/sys/class/gpio"
+
+if [ -$2 != - -a -$3 != - ] ; then
+   list=`seq $2 $3`
+elif [ -$2 != - ] ; then
+   list=gpio$2
+else
+   list=gpio*
+fi
+
+#echo Using list: $list
+
+for file in $list ; do
+
+    if [[ $file == gpiochip* ]] ; then
+       continue
+    fi
+
+    if [[ $file != gpio* ]] ; then
+       file=gpio$file
+    fi
+
+    if [[ -$1 != -ex* ]] ; then
+       if [ ! -d $file ] ; then
+          echo "$file: not present"
+          continue
+       fi
+    fi
+
+    case "-$1" in
+       -|-ls)
+          echo "$file: `cat $file/direction` `cat $file/value`"
+          ;;
+       -in|-out)
+          echo $1 > $file/direction
+          ;;
+       -0|-1)
+          echo $1 > $file/value
+          ;;
+       -ex*)
+          num=${file#gpio}
+          echo "Exporting $num"
+          echo $num > export
+          ;;
+       -unex*)
+          num=${file#gpio}
+	  echo "Unexporting $num"
+          echo $num > unexport
+          ;;
+       *)
+          echo "Unrecognized operation $1"
+	  exit
+
+    esac
+
+done

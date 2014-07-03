@@ -200,8 +200,9 @@ typedef enum e_para_gpiodir {
 // GPIO structure for the C functions
 typedef struct st_para_gpio {
   int nID;
-  FILE *fpVal;
-  FILE *fpDir;
+  int fdWVal;
+  int fdRVal;
+  int fdDir;
   bool bIsNew;
   para_gpiodir eDir;
 } para_gpio;
