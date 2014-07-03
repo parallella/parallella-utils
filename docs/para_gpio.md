@@ -98,7 +98,9 @@ Rather than keep a structure around that gets passed to every function, a
 C++ class encapsulates that information and simplifies the user interface.
 Here is a list of member functions for the CParaGpio class.  Except for
 the constructors, all functions return 0 (success) or an error code.  The
-error codes are the same as for the C functions.
+error codes are the same as for the C functions.  The C++ class wraps 
+the functions in the C library, so para_gpio.c must be compiled into the
+project as well.
 
     CParaGpio()  - Constructs an 'empty' GPIO object which may later have
        a pin or group of pins assigned to it.
@@ -121,7 +123,6 @@ error codes are the same as for the C functions.
 
     AddPin(int nID) - Adds a new pin to the object, for multi-pin objects
       this will become the new most-significant bit.
-
 
     IsOK() - Checks that all pin assignments were successful, returns
       true if no errors have occurred during pin assignment, including
@@ -170,11 +171,9 @@ The following functions are not currently implemented:
 ## Performance
 
 As shown in the gpiotest application, the Parallella is capable of 
-doing ~63k GPIO operations (reads or writes) per second.
+doing ~70k GPIO operations (reads or writes) per second.
 
 ## Notes
-
-* The C++ class has not been released yet.
 
 * There has been no attempt to make this thread-safe or to deal intelligently 
   with two or more objects that refer to the same pins.  
