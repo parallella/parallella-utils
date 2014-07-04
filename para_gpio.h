@@ -144,12 +144,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     GetDirection(para_gpiodir *pDir) - Gets the current direction setting as above.
 
-    SetValue(int nValue) - Sets the values of all pins.  The effect of this
-      function depends on the current Direction setting.
+    SetValue(unsigned long long nValue) - Sets the values of all pins.
+      The effect of this function depends on the current Direction setting.
 
-    GetValue(int *pValue) - Gets the current levels of all pins.  This
-      function always reads the pin levels, it doesn't just return the values
-      most recently Set, regardless of direction.
+    GetValue(unsigned long long *pValue) - OR
+    GetValue(unsigned *pValue) - Gets the current levels of all
+      pins.  This function always reads the pin levels, it doesn't just
+      return the values most recently Set, regardless of direction.
 
     WaitLevel(int nPin, int nValue, int nTimeout) - Waits for the given
       value to be present on the input, meaning it will return immediately
@@ -162,9 +163,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       must toggle before this function will return.  Times out after
       nTimeout seconds if no edge.
 
-    Blink(int nMask, int nMSOn, int nMSOff) - "Blinks" the gpio pin(s) defined
-      in nMask by turning them on for nMSOn milliseconds then then off for 
-      nMSOff before returning.
+    Blink(unsigned long long nMask, int nMSOn, int nMSOff) -
+      "Blinks" the gpio pin(s) defined in nMask by turning them on for
+      nMSOn milliseconds then then off for nMSOff before returning.
 
     Close() - Releases all pins from the object.  This happens automatically
       when the object is destroyed.  New pins may be added with AddPin()
@@ -186,7 +187,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define PARA_GPIO_H
 
 #include <stdbool.h>
-#include <stdio.h>
 
 // Available directions
 typedef enum e_para_gpiodir {
@@ -200,8 +200,7 @@ typedef enum e_para_gpiodir {
 // GPIO structure for the C functions
 typedef struct st_para_gpio {
   int nID;
-  int fdWVal;
-  int fdRVal;
+  int fdVal;
   int fdDir;
   bool bIsNew;
   para_gpiodir eDir;
@@ -260,11 +259,12 @@ class CParaGpio {
   int GetNPins() { return nPins; }
   int SetDirection(para_gpiodir eDir);
   int GetDirection(para_gpiodir *pDir);
-  int SetValue(unsigned int nValue);
-  int GetValue(unsigned int *pValue);
+  int SetValue(unsigned long long nValue);
+  int GetValue(unsigned long long *pValue);
+  int GetValue(unsigned *pValue);
   int WaitLevel(int nPin, int nValue, int nTimeout);
   int WaitEdge(int nPin, int nValue, int nTimeout);
-  int Blink(int nMask, int nMSOn, int nMSOff);
+  int Blink(unsigned long long nMask, int nMSOn, int nMSOff);
   void Close();
 };
 

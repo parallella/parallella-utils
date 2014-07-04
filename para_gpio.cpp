@@ -37,6 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "para_gpio.h"
+#include <unistd.h>
 
  // Using pins in this order puts them in "sane" order
  // on the Porcupine GPIO headers.  Note these IDs must be
@@ -147,12 +148,12 @@ int CParaGpio::GetDirection(para_gpiodir *pDir) {
   return para_noaccess;  // TODO: Implement C function for this!
 }
 
-int CParaGpio::SetValue(unsigned int nValue) {
+int CParaGpio::SetValue(unsigned long long nValue) {
   int n, res, ret = para_ok;
 
   for(n = 0; n < nPins; n++) {
 
-    res = para_setgpio(pGpio[n], (nValue >> n) & 1);
+    res = para_setgpio(pGpio[n], (int)((nValue >> n) & 1));
 
     if(res != para_ok)
       ret = res;
@@ -161,8 +162,30 @@ int CParaGpio::SetValue(unsigned int nValue) {
   return ret;
 }
 
-int CParaGpio::GetValue(unsigned int *pValue) {
+int CParaGpio::GetValue(unsigned long long *pValue) {
   int n, bit, res, ret = para_ok;
+
+  *pValue = 0;
+
+  for(n = 0; n < nPins; n++) {
+
+    res = para_getgpio(pGpio[n], &bit);
+
+    if(res != para_ok)
+      ret = res;
+    else
+      *pValue |= ((unsigned long long)(bit & 1)) << n;
+
+  }
+
+  return ret;
+}
+
+int CParaGpio::GetValue(unsigned *pValue) {
+  int n, bit, res, ret = para_ok;
+
+  if(nPins > 32)
+    return para_outofrange;
 
   *pValue = 0;
 
@@ -190,9 +213,28 @@ int CParaGpio::WaitEdge(int nPin, int nValue, int nTimeout) {
   return para_noaccess;  // TODO: Implement C function for this!
 }
 
-int CParaGpio::Blink(int nMask, int nMSOn, int nMSOff) {
+int CParaGpio::Blink(unsigned long long nMask, int nMSOn, int nMSOff) {
+  int ret, n;
 
-  return para_noaccess;  // TODO: Add this wrapper!
+  for(n=0; n < nPins; n++) {
+
+    if(nMask & ( 1LL << n ))
+      if((ret = para_setgpio(pGpio[n], 1)) != para_ok)
+	return ret;
+  }
+
+  usleep(nMSOn * 1000);
+
+  for(n=0; n < nPins; n++) {
+
+    if(nMask & (1<<n))
+      if((ret = para_setgpio(pGpio[n], 0)) != para_ok)
+	return ret;
+  }
+
+  usleep(nMSOff * 1000);
+
+  return para_ok;
 }
 
 void CParaGpio::Close() {

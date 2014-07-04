@@ -44,7 +44,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <fcntl.h>
 
 // Use the filesystem interface to control the GPIOs
-// Base on: http://www.wiki.xilinx.com/GPIO+User+Space+App
+// Based on: http://www.wiki.xilinx.com/GPIO+User+Space+App
 //  remember to fflush the fp to get the pin to update!
 
 #define GPIOBASE  "/sys/class/gpio/"
@@ -77,8 +77,7 @@ int  para_initgpio_ex(para_gpio **ppGpio, int nID, bool bMayExist) {
 
   (*ppGpio)->nID = nID;
   (*ppGpio)->eDir = para_dirunk;
-  (*ppGpio)->fdWVal = -1;
-  (*ppGpio)->fdRVal = -1;
+  (*ppGpio)->fdVal = -1;
   (*ppGpio)->fdDir = -1;
   (*ppGpio)->bIsNew = false;
 
@@ -118,19 +117,12 @@ int  para_initgpio_ex(para_gpio **ppGpio, int nID, bool bMayExist) {
   (*ppGpio)->fdDir = fd;
 
   sprintf(str1, GPIOBASE "gpio%d/value", nID);
-  if((fd = open(str1, O_WRONLY)) < 0) {  // Can't Read & Write on same fp?
-    fprintf(stderr, "Can't open the value file (write) %s\n", str1);
+  if((fd = open(str1, O_RDWR)) < 0) {  // Read & Write on same fd
+    fprintf(stderr, "Can't open the value file %s\n", str1);
     rc = para_fileerr;
     goto initfail;
   }
-  (*ppGpio)->fdWVal = fd;
-
-  if((fd = open(str1, O_RDONLY)) < 0) {
-    fprintf(stderr, "Can't open the value file (read) %s\n", str1);
-    rc = para_fileerr;
-    goto initfail;
-  }
-  (*ppGpio)->fdRVal = fd;
+  (*ppGpio)->fdVal = fd;
 
   return rc;
 
@@ -153,14 +145,9 @@ void para_closegpio_ex(para_gpio *pGpio, bool bForceUnexport) {
   if(pGpio == NULL)
     return;
 
-  if(pGpio->fdWVal >= 0) {
-    close(pGpio->fdWVal);
-    pGpio->fdWVal = -1;
-  }
-  
-  if(pGpio->fdRVal >= 0) {
-    close(pGpio->fdRVal);
-    pGpio->fdRVal = -1;
+  if(pGpio->fdVal >= 0) {
+    close(pGpio->fdVal);
+    pGpio->fdVal = -1;
   }
   
   if(pGpio->fdDir >= 0) {
@@ -192,13 +179,13 @@ int para_setgpio(para_gpio *pGpio, int nValue) {
   if(pGpio == NULL)
     return para_badgpio;
 
-  if(pGpio->fdWVal < 0 || pGpio->fdDir < 0)
+  if(pGpio->fdVal < 0 || pGpio->fdDir < 0)
     return para_notopen;
 
   switch(pGpio->eDir) {
 
   case para_dirout:
-    res = write(pGpio->fdWVal, nValue & 1 ? str1 : str0, strlen(str0));
+    res = write(pGpio->fdVal, nValue & 1 ? str1 : str0, strlen(str0));
     //    flush(pGpio->fpWVal);
     break;
 
@@ -229,7 +216,7 @@ int para_dirgpio(para_gpio *pGpio, para_gpiodir eDir) {
   if(pGpio == NULL)
     return para_badgpio;
 
-  if(pGpio->fdWVal < 0 || pGpio->fdDir < 0)
+  if(pGpio->fdVal < 0 || pGpio->fdDir < 0)
     return para_notopen;
 
   switch(eDir) {
@@ -245,12 +232,12 @@ int para_dirgpio(para_gpio *pGpio, para_gpiodir eDir) {
     break;
 
   case para_dirwand:
-    res = write(pGpio->fdWVal, str0, strlen(str0));
+    res = write(pGpio->fdVal, str0, strlen(str0));
     //    fflush(pGpio->fpWVal);
     break;
 
   case para_dirwor:
-    res = write(pGpio->fdWVal, str1, strlen(str1));
+    res = write(pGpio->fdVal, str1, strlen(str1));
     //    fflush(pGpio->fpWVal);
     break;
 
@@ -270,15 +257,15 @@ int para_getgpio(para_gpio *pGpio, int *pValue) {
   if(pGpio == NULL)
     return para_badgpio;
 
-  if(pGpio->fdRVal < 0)
+  if(pGpio->fdVal < 0)
     return para_notopen;
 
   if(pValue == NULL)
     return para_badarg;
 
-  lseek(pGpio->fdRVal, 0, SEEK_SET);
+  lseek(pGpio->fdVal, 0, SEEK_SET);
 
-  if(read(pGpio->fdRVal, &c, 1)) {
+  if(read(pGpio->fdVal, &c, 1)) {
 
     if(c == '0')
       *pValue = 0;

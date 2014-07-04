@@ -45,9 +45,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     between banks of GPIOs.
 */
 
-// If TEST is defined, will pause with fgets() after each test
-#define TEST
-
 // Set number of GPIO pins to use for the test, from each bank of 24
 // NOTE: The default devicetree has GPIO85 reserved as a USB reset
 // (which it's not), so for the moment we'll skip that bit.
@@ -115,6 +112,7 @@ int nRevArray[] = {
 int main(int argc, char *argv[]) {
   int	n, dir, c, rc, pol, nCountInc=0, verbose=0, debug=0;
   unsigned wval, rval, cumAB=0, cumBA=0, errs=0, tests=0;
+  unsigned onesAB=0, onesBA=0, zerosAB=0xFFFFFFFF, zerosBA=0xFFFFFFFF;
   CParaGpio  *gpioa, *gpiob;
   char str[256];
 
@@ -184,6 +182,8 @@ int main(int argc, char *argv[]) {
     CParaGpio *pgIn  = dir ? gpioa : gpiob;
     CParaGpio *pgOut = dir ? gpiob : gpioa;
     unsigned *pCum = dir ? &cumBA : &cumAB;
+    unsigned *pOnes = dir ? &onesBA : &onesAB;
+    unsigned *pZeros = dir ? &zerosBA : &zerosAB;
 
     rc = pgIn->SetDirection(para_dirin);
     if(rc != para_ok) {
@@ -220,6 +220,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	tests++;
+	*pOnes |= rval;
+	*pZeros &= rval;
 
 	if(rval != wval) {
 	  printf("MISMATCH: wrote 0x%08X, read 0x%08X, xor 0x%08X\n", wval, rval, wval ^ rval);
@@ -297,8 +299,11 @@ int main(int argc, char *argv[]) {
 
   printf("\nTotal of %d error(s) in %d tests.\n", errs, tests);
 
-  if(errs)
-    printf("Masks: A->B = 0x%08X B->A = 0x%08X\n\n", cumAB, cumBA);
+  if(errs) {
+    printf("Masks: A->B = 0x%08X B->A = 0x%08X\n", cumAB, cumBA);
+    printf("Zeros: A->B = 0x%08X B->A = 0x%08X\n", zerosAB, zerosBA);
+    printf(" Ones: A->B = 0x%08X B->A = 0x%08X\n\n", onesAB, onesBA);
+  }
 
  done:
   printf("Closing\n");

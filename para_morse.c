@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #include "para_gpio.h"
+#include <stdio.h>
 
 char *arrMorse[] = {
 	"",		// 32 ' '  (not used as a character)
