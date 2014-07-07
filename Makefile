@@ -1,8 +1,10 @@
 CC=gcc
+CPP=g++
 CFLAGS=-Wall
 CLIBX=-lX11
 CPTHRD=-pthread
 CLIBRT=-lrt
+CLIBPP=-lstdc++
 GPIOSRCS=para_morse.c para_gpio.c
 GPIODEPS=Makefile $(GPIOSRCS) para_morse.h para_gpio.h
 
@@ -23,8 +25,11 @@ pmorse: pmorse.c $(GPIODEPS)
 gpiotest: gpiotest.c $(GPIODEPS)
 	$(CC) -o gpiotest gpiotest.c $(GPIOSRCS) $(CFLAGS) $(CLIBRT)
 
+porcutest: porcutest.cpp para_gpio.c para_gpio.cpp
+	$(CC) -o porcutest porcutest.cpp para_gpio.c para_gpio.cpp $(CLIBPP) $(CFLAGS)
+
 clean:
-	rm -f xtemp pmorse gpiotest
+	rm -f xtemp pmorse gpiotest porcutest
 
 install: install-exec
 

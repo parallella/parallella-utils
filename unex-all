@@ -1,0 +1,19 @@
+#!/bin/bash
+# quickie script to un-export all "leftover" exported GPIO pins
+# Run this as root in /sys/class/gpio
+
+# Provided as-is for any purpose
+#  Fred@Adapteva.com
+
+for file in gpio*
+do
+    echo $file
+    if [[ $file == gpiochip* ]]
+    then
+	echo "  (skip)"
+    else
+	echo ${file#gpio} > unexport
+    fi
+done
+
+cat /sys/kernel/debug/gpio

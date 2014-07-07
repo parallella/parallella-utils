@@ -113,16 +113,26 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       continuing for a total of nNumIDs pins.  If bPorcOrder is false,
       the pins are assigned in numerical order 0, 1, 2, 3...  If true,
       the pin assignments are made in the order of the Porcupine
-      breakout board's single-ended assignments, i.e. 0 2 1 3 4 6 5 7, 
-      so they come out 'nicely' on the headers.
+      breakout board's single-ended assignments, i.e. 0 2 1 3 4 6 5 7,
+      so they come out 'nicely' on the headers.  If using bPorcOrder,
+      do NOT add the offset of 54 for the first external GPIO pin,
+      instead use a startID based at 0.  The offset will be added
+      automatically.
 
-    CParaGpio(int *pIDArray, int nNumIDs) - Constructs a multi-pin GPIO
-      object using the pin numbers defined in the array pIDArray.  The
-      first ID in the array corresponds to the lowest bit in any read
-      or write transaction.
+    CParaGpio(int *pIDArray, int nNumIDs, bool bPorcOrder=false) -
+      Constructs a multi-pin GPIO object using the pin numbers defined
+      in the array pIDArray.  The first ID in the array corresponds to
+      the lowest bit in any read or write transaction.
 
     AddPin(int nID) - Adds a new pin to the object, for multi-pin objects
-      this will become the new most-significant bit.
+      this will become the new most-significant bit.  Returns
+      para_ok on success or else an integer error code.
+
+    IsOK() - Checks that all pin assignments were successful, returns
+      true if no errors have occurred during pin assignment, including
+      if no pins have been asssigned, returns false otherwise.
+
+    GetNPins() - Returns the number of pins assigned.
 
     SetDirection(para_gpiodir eDir) - Sets the direction for all pins of the object
       based on the enum eDir:
@@ -134,28 +144,32 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     GetDirection(para_gpiodir *pDir) - Gets the current direction setting as above.
 
-    SetValue(int nValue) - Sets the values of all pins.  The effect of this
-      function depends on the current Direction setting.
+    SetValue(unsigned long long nValue) - Sets the values of all pins.
+      The effect of this function depends on the current Direction setting.
 
-    GetValue(int *pValue) - Gets the current levels of all pins.  This
-      function always reads the pin levels, it doesn't just return the values
-      most recently Set, regardless of direction.
+    GetValue(unsigned long long *pValue) - OR
+    GetValue(unsigned *pValue) - Gets the current levels of all
+      pins.  This function always reads the pin levels, it doesn't just
+      return the values most recently Set, regardless of direction.
 
-    WaitLevel(int nValue, int nTimeout) - Waits for the given value to be
-      present on the input, meaning it will return immediately if the input
-      is already at the requested value.  Times out after nTimeout seconds
-      if request not satisfied.
+    WaitLevel(int nPin, int nValue, int nTimeout) - Waits for the given
+      value to be present on the input, meaning it will return immediately
+      if the input is already at the requested value.  Times out after
+      nTimeout seconds if request not satisfied.
 
-    WaitEdge(int nValue, int nTimeout) - Waits for a rising (nValue = 1) or
-      falling (nValue = 0) edge on the input.  Requires an edge, i.e. if
-      the input is already at the requested level it must toggle before this
-      function will return.  Times out after nTimeout seconds if no edge.
+    WaitEdge(int nPin, int nValue, int nTimeout) - Waits for a rising 
+      (nValue = 1) or falling (nValue = 0) edge on the input.  Requires
+      an edge, i.e. if the input is already at the requested level it
+      must toggle before this function will return.  Times out after
+      nTimeout seconds if no edge.
 
-    Blink(int nMSOn, nMSOff) - "Blinks" the gpio pin(s) by turning them on
-      for nMSOn milliseconds then then off for nMSOff before returning.
+    Blink(unsigned long long nMask, int nMSOn, int nMSOff) -
+      "Blinks" the gpio pin(s) defined in nMask by turning them on for
+      nMSOn milliseconds then then off for nMSOff before returning.
 
     Close() - Releases all pins from the object.  This happens automatically
-      when the object is destroyed.
+      when the object is destroyed.  New pins may be added with AddPin()
+      after calling this functions.
 
   Caveats:
 
@@ -173,7 +187,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define PARA_GPIO_H
 
 #include <stdbool.h>
-#include <stdio.h>
 
 // Available directions
 typedef enum e_para_gpiodir {
@@ -187,8 +200,8 @@ typedef enum e_para_gpiodir {
 // GPIO structure for the C functions
 typedef struct st_para_gpio {
   int nID;
-  FILE *fpVal;
-  FILE *fpDir;
+  int fdVal;
+  int fdDir;
   bool bIsNew;
   para_gpiodir eDir;
 } para_gpio;
@@ -210,9 +223,12 @@ enum e_para_gpiores {
 };
 
 #define MAXPINSPEROBJECT  64
+#define EXTGPIOSTART      54
+#define EXTGPIONUM        64
+#define LASTGPIOID        (EXTGPIOSTART + EXTGPIONUM - 1)
 
 #ifdef __cplusplus
-external "C" {
+extern "C" {
 #endif  // __cplusplus
 
   int         para_initgpio(para_gpio **ppGpio, int nID);
@@ -225,29 +241,34 @@ external "C" {
   int         para_blinkgpio(para_gpio *pGpio, int nMSOn, int nMSOff);
   
 #ifdef __cplusplus
-}  // external "C"
+}  // extern "C"
 
 class CParaGpio {
  protected:
   int  nPins;
-  para_gpio gpio[MAXPINSINOBJECT];
+  para_gpio *pGpio[MAXPINSPEROBJECT];
+  bool bIsOK;
 
  public:
   CParaGpio();
   CParaGpio(int nStartID, int nNumIDs=1, bool bPorcOrder=false);
-  CParaGpio(int *pIDArray, int nNumIDs);
+  CParaGpio(int *pIDArray, int nNumIDs, bool bPorcOrder=false);
+  ~CParaGpio();
   int AddPin(int nID);
+  bool IsOK() { return bIsOK; }
+  int GetNPins() { return nPins; }
   int SetDirection(para_gpiodir eDir);
   int GetDirection(para_gpiodir *pDir);
-  int SetValue(int nValue);
-  int GetValue(int *pValue);
-  int WaitLevel(int nValue, int nTimeout);
-  int WaitEdge(int nValue, int nTimeout);
-  int Blink(int nMSOn, int nMSOff);
-  Close();
-}
+  int SetValue(unsigned long long nValue);
+  int GetValue(unsigned long long *pValue);
+  int GetValue(unsigned *pValue);
+  int WaitLevel(int nPin, int nValue, int nTimeout);
+  int WaitEdge(int nPin, int nValue, int nTimeout);
+  int Blink(unsigned long long nMask, int nMSOn, int nMSOff);
+  void Close();
+};
 
-#endif
+#endif  // __cplusplus
 
 
 #endif  // PARA_GPIO_H
