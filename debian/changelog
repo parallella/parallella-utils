@@ -1,3 +1,9 @@
+parallella-utils (0.0+1SNAPSHOT20140708~trusty1) trusty; urgency=low
+
+  * New snapshot.
+
+ -- Andrew Back <andrew@parallella.org> Tue, 08 July 2014 21:13:00 +0100
+
 parallella-utils (0.0+1SNAPSHOT20140707~trusty1) trusty; urgency=low
 
   * Initial snapshot release.
