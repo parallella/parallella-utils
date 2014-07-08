@@ -10,7 +10,8 @@ GIT_TAG         ?= $(shell echo '$(VERSION)' | sed -e 's/~/_/')
 %:
 	dh $@ 
 
-override_dh_usrlocal:
+override_dh_auto_install:
+	$(MAKE) DESTDIR=$$(pwd)/debian/parallella-utils prefix=/usr install
  
 make-orig-file:
 	if [ ! -f ../$(DEBPKGNAME)_$(VERSION).orig.tar.xz ] ; then \
