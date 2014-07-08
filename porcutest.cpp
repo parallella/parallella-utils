@@ -31,14 +31,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /*
 
-  porcutest.c
+  porcutest.cpp
 
   Test of the Porcupine GPIO pins.  Requires a connection between
     two banks of GPIOs, one bank will write while the other reads.
     Read/Write are swapped for each test.
 
   Build:
-  gcc -o porcutest porcutest.cpp para_gpio.cpp para_gpio.c -Wall
+  gcc -o porcutest porcutest.cpp para_gpio.cpp para_gpio.c -lstdc++ -Wall
 
   Notes:
     Not intended for more than 31 "wires," meaning connections

@@ -124,9 +124,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
       in the array pIDArray.  The first ID in the array corresponds to
       the lowest bit in any read or write transaction.
 
-    AddPin(int nID) - Adds a new pin to the object, for multi-pin objects
-      this will become the new most-significant bit.  Returns
-      para_ok on success or else an integer error code.
+    AddPin(int nID, bool bPorcOrder=false) - Adds a new pin to the object,
+      for multi-pin objects this will become the new most-significant bit.
+      Returns para_ok on success or else an integer error code.
 
     IsOK() - Checks that all pin assignments were successful, returns
       true if no errors have occurred during pin assignment, including
@@ -254,7 +254,7 @@ class CParaGpio {
   CParaGpio(int nStartID, int nNumIDs=1, bool bPorcOrder=false);
   CParaGpio(int *pIDArray, int nNumIDs, bool bPorcOrder=false);
   ~CParaGpio();
-  int AddPin(int nID);
+  int AddPin(int nID, bool bPorcOrder=false);
   bool IsOK() { return bIsOK; }
   int GetNPins() { return nPins; }
   int SetDirection(para_gpiodir eDir);

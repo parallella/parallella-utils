@@ -113,11 +113,14 @@ CParaGpio::~CParaGpio() {
   Close();
 }
 
-int CParaGpio::AddPin(int nID) {
+int CParaGpio::AddPin(int nID, bool bPorcOrder/*=false*/) {
   int  ret;
 
   if(nPins >= MAXPINSPEROBJECT)
     return para_outofmemory;
+
+  if(bPorcOrder)
+    nID = nPorcOrder[nID] + EXTGPIOSTART;
 
   ret = para_initgpio(pGpio + nPins, nID);
 
