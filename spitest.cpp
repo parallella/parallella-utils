@@ -47,6 +47,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <ctype.h>
 #include "para_spi.h"
 
@@ -74,17 +75,39 @@ void Usage() {
 
   printf("   #bits hexval > 16 ABCD\n\n");
 
-  printf("   Enter '-' to repeat the last operation, 'q' to quit.\n\n");
+  printf("   Or, enter a quote-delimited string to send to the device one\n");
+  printf("     byte at a time.  Non-ASCII characters may be sent using \\xNN\n");
+  printf("     (two hex digits), or a literal '\\' or '\"' may be sent with\n");
+  printf("     '\\\\' or '\\\"' respectively.\n");
+  printf("     Any return data is discarded.\n\n");
+
+  printf("   Enter an empty line to repeat the last operation or 'q' to quit.\n\n");
 
   printf("Note: This application needs (probably root) access to /sys/class/gpio\n");
   printf("\n");
 
 }
 
+int hextoi(char c) {
+  int x;
+
+  if(c >= 'a')
+    x = c - 'a' + 10;
+  else if(c >= 'A')
+    x = c - 'A' + 10;
+  else
+    x =  c - '0';
+
+  if(x < 0 || x > 15)
+    x = -1;
+
+  return x;
+}
+
 int main(int argc, char *argv[]) {
   int nCLK=65, nMOSI=66, nMISO=68, nSS=64, n, c;
-  int nCPOL=0, nCPHA=0, nEPOL=0, res;
-  char str[256];
+  int nCPOL=0, nCPHA=0, nEPOL=0, res, sendstr=0, done=0;
+  char str[256], strLast[256];
   unsigned nbits=0, wval=0, rval=0;
   CParaSpi  spi;
 
@@ -155,9 +178,11 @@ int main(int argc, char *argv[]) {
 
   printf("Success\n");
 
+  strLast[0] = 0;  // Just in case someone gets sneaky
+
   printf("Enter 'q' to quit.\n\n");
 
-  while(1) {
+  while(!done) {
 
     printf("#bits hexval > ");
 
@@ -167,21 +192,65 @@ int main(int argc, char *argv[]) {
     if(str[0] == 'q' || str[0] == 'Q')
       break;
 
-    if(str[0] != '-' && sscanf(str, "%d %x", &nbits, &wval) != 2) {
+    if(str[0] != '\n') {
 
-      printf(" ???\n");
-      continue;
+      if(str[0] == '"') {
+
+	strcpy(strLast, str);
+	sendstr = 1;
+
+      } else if(sscanf(str, "%d %x", &nbits, &wval) == 2) {
+
+	sendstr = 0;
+
+      } else {
+
+	printf(" ???\n");
+	continue;
+      }
 
     }
 
-    res = spi.Xfer(nbits, &wval, &rval);
-    if(res) {
-      fprintf(stderr, "Xfer() returned %d, exiting\n", res);
-      break;
+    if(sendstr) {
+
+      for(n=1; strLast[n] && strLast[n] != '"'; n++) {
+
+	c = -1;
+
+	if(strLast[n] == '\\') {
+
+	  n++;
+
+	  if(str[n] == 'x') {
+
+	    c = hextoi(strLast[++n]) << 4;
+	    c += hextoi(strLast[++n]);
+	  }
+	}
+
+	if(c >= 0)
+	  res = spi.Xfer(8, c);
+	else
+	  res = spi.Xfer(8, strLast[n]);
+
+	if(res) {
+	  fprintf(stderr, "Xfer() returned %d, exiting\n", res);
+	  done = 1;
+	}
+      }
+
+      printf("String sent.\n\n");
+
+    } else {
+
+      res = spi.Xfer(nbits, &wval, &rval);
+      if(res) {
+	fprintf(stderr, "Xfer() returned %d, exiting\n", res);
+	done = 1;
+      }
+
+      printf("Sent 0x%08X, Rcvd 0x%08X\n\n", wval, rval);
     }
-
-    printf("Sent 0x%08X, Rcvd 0x%08X\n\n", wval, rval);
-
   }
 
   // done:
