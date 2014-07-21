@@ -1,0 +1,59 @@
+./" Manpage for XTemp.
+./" Contributed by F. Huettig (fred@adapteva.com)
+.TH man 1 "19 July 2014" "0.1" "xtemp Parallella Utility"
+.SH NAME
+xtemp \- Monitor system temperature
+
+.SH SYNOPSIS
+.B xtemp
+.RB [\| \-h \|]
+.br
+.B xtemp
+.RB [\| \-l
+.IR limittemp \|]
+.RB [\| \-w
+.IR warntemp \|]
+.RB [\| \-r
+.IR refresh \|]
+
+.SH DESCRIPTION
+Reads the XADC on-chip temperature sensor for the Zynq chip, and
+displays the results as a graph in an X window.
+
+Press the 'q' key to quit, or just close the window.
+
+.SH OPTIONS
+.TP
+\fB\-h\fP
+Displays help / usage info. and quits.
+
+.TP
+\fB\-l\fP \fIlimittemp\fP
+If the measured temperature rises above \fIlimittemp\fP the graph will turn red.  \fIlimittemp\fP must be a decimal number in degrees C.  Default is 80C.
+
+.TP
+\fB\-w\fP \fIwarntemp\fP
+If the measured temperature rises above \fIwarntemp\fP the graph will turn orange.  \fIwarntemp\fP must be a decimal number in degrees C.  Default is 70C.
+
+.TP
+\fB\-r\fP \fIrefresh\fP
+A new measurement will be taken, and the graph updated, every \fIrefresh\fP seconds.  Default 2.
+
+.SH FILES
+.TP
+.B /sys/bus/iio/devices/iio:device0/*
+A special file object is located in this directory to capture ADC measurements.  Other files in that location report static gain & offset values.
+
+.SH ERRORS
+.TP
+.B Unable to open X display
+Perhaps you are not running in a windowed environment?  xterm can not be run from a text-only terminal or other environment without X-windows support.
+
+.SH EXAMPLE
+> ./xtemp -l 82 -w 72 -r 1
+
+.SH SEE ALSO
+.BR para_xadc (3).
+
+.SH AUTHOR
+Fred Huettig, <fred@adapteva.com>
