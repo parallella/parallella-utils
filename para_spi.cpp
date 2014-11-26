@@ -132,13 +132,15 @@ int CParaSpi::Xfer(int nBits, unsigned *pWVal, unsigned *pRVal/*=NULL*/) {
 
   clk = m_nCPOL;
 
-  if(m_nCPHA) {
+
+  for(n = nBits-1; n >= 0; n--) {
+
+
+    if(m_nCPHA) {
     clk = 1-clk;
     res = para_setgpio(pGpio[SPICLKPIN], clk);
     if(res) return res;
   }
-
-  for(n = nBits-1; n >= 0; n--) {
 
     if(pWVal) {
       res = para_setgpio(pGpio[SPIMOSIPIN], (*pWVal >> n) & 1);
