@@ -116,7 +116,7 @@ int CParaSpi::Xfer(int nBits, unsigned nWVal, unsigned *pRVal/*=NULL*/) {
 }
 
 int CParaSpi::Xfer(int nBits, unsigned *pWVal, unsigned *pRVal/*=NULL*/) {
-  int n, clk, res;
+  int n, clk, res, currentVal, lastVal;
   int rval;
 
   if(pWVal == NULL)
@@ -136,19 +136,30 @@ int CParaSpi::Xfer(int nBits, unsigned *pWVal, unsigned *pRVal/*=NULL*/) {
   for(n = nBits-1; n >= 0; n--) {
 
 
-    if(m_nCPHA) {
+  if(m_nCPHA) { //if being reading on second edge start with first edge already passed
     clk = 1-clk;
     res = para_setgpio(pGpio[SPICLKPIN], clk);
     if(res) return res;
   }
 
-    if(pWVal) {
-      res = para_setgpio(pGpio[SPIMOSIPIN], (*pWVal >> n) & 1);
+    if(pWVal) { //a speedhack by checking last value
+            currentVal = ((*pWVal >> n) & 1);
+            if(n == nBits-1) //check if first loop
+            {
+      res = para_setgpio(pGpio[SPIMOSIPIN], currentVal);
+      lastVal=currentVal;
+            }
+            else if ((currentVal)!=lastVal)
+            {
+    res = para_setgpio(pGpio[SPIMOSIPIN], currentVal);
+    lastVal=currentVal;
+            }
+
       if(res) return res;
     }
 
     clk = 1-clk;
-    res = para_setgpio(pGpio[SPICLKPIN], clk);
+    res = para_setgpio(pGpio[SPICLKPIN], clk);//advance the clock to tell device to read
     if(res) return res;
 
     if(pRVal) {
@@ -157,7 +168,7 @@ int CParaSpi::Xfer(int nBits, unsigned *pWVal, unsigned *pRVal/*=NULL*/) {
       *pRVal |= rval << n;
     }
 
-    if(!m_nCPHA) {
+    if(!m_nCPHA) { //if reading on first clock edge, change the clock back to idle after the data has been written
       clk = 1-clk;
       res = para_setgpio(pGpio[SPICLKPIN], clk);
       if(res) return res;
