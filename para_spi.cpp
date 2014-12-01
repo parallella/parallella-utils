@@ -134,41 +134,39 @@ int CParaSpi::Xfer(int nBits, unsigned *pWVal, unsigned *pRVal/*=NULL*/) {
 
 
   for(n = nBits-1; n >= 0; n--) {
-
-
-  if(m_nCPHA) { //if being reading on second edge start with first edge already passed
-    clk = 1-clk;
-    res = para_setgpio(pGpio[SPICLKPIN], clk);
-    if(res) return res;
-  }
-
-    if(pWVal) { //a speedhack by checking last value
-            currentVal = ((*pWVal >> n) & 1);
-            if(n == nBits-1) //check if first loop
-            {
-      res = para_setgpio(pGpio[SPIMOSIPIN], currentVal);
-      lastVal=currentVal;
-            }
-            else if ((currentVal)!=lastVal)
-            {
-    res = para_setgpio(pGpio[SPIMOSIPIN], currentVal);
-    lastVal=currentVal;
-            }
-
+    
+    //if slave is reading on second edge perform first edge now
+    if(m_nCPHA) {
+      clk = 1-clk;
+      res = para_setgpio(pGpio[SPICLKPIN], clk);
       if(res) return res;
     }
 
+    if(pWVal) {  // Send data if asked to do so
+
+      currentVal = ((*pWVal >> n) & 1);  // get next bit
+
+      // Only update the pin if this is the first bit or the bit has changed
+      if((n == nBits-1) || (currentVal != lastVal)) {
+        res = para_setgpio(pGpio[SPIMOSIPIN], currentVal);
+        if(res) return res;
+        lastVal=currentVal;
+      }
+    }
+
+    //advance the clock, device will read bit
     clk = 1-clk;
-    res = para_setgpio(pGpio[SPICLKPIN], clk);//advance the clock to tell device to read
+    res = para_setgpio(pGpio[SPICLKPIN], clk);
     if(res) return res;
 
-    if(pRVal) {
+    if(pRVal) { // Read data if there is a place to put it
       res = para_getgpio(pGpio[SPIMISOPIN], &rval);
       if(res) return res;
       *pRVal |= rval << n;
     }
 
-    if(!m_nCPHA) { //if reading on first clock edge, change the clock back to idle after the data has been written
+    // if slave is reading on the first edge send second edge now
+    if(!m_nCPHA) {
       clk = 1-clk;
       res = para_setgpio(pGpio[SPICLKPIN], clk);
       if(res) return res;
