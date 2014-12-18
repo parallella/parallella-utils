@@ -1,0 +1,2 @@
+# Parallella Thermal Watchdog Daemon
+
