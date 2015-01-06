@@ -13,9 +13,18 @@
 
 /* TODO: Check if we should log to stdout, stderr or both */
 
-#define TEMP_RAW_PATH    "/sys/bus/iio/devices/iio:device0/in_temp0_raw"
-#define TEMP_OFFSET_PATH "/sys/bus/iio/devices/iio:device0/in_temp0_offset"
-#define TEMP_SCALE_PATH  "/sys/bus/iio/devices/iio:device0/in_temp0_scale"
+#if TEST
+#ifndef DEBUG
+#define DEBUG 1
+#endif
+#define TEMP_DIR         "/tmp/thermald/"
+#else
+#define TEMP_DIR         "/sys/bus/iio/devices/iio:device0/"
+#endif
+
+#define TEMP_RAW_PATH    (TEMP_DIR "in_temp0_raw")
+#define TEMP_OFFSET_PATH (TEMP_DIR "in_temp0_offset")
+#define TEMP_SCALE_PATH  (TEMP_DIR "in_temp0_scale")
 
 /* In Celsius */
 #define DEFAULT_MIN_TEMP 0
