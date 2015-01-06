@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
+#include <math.h>
 
 #include <e-hal.h>
 
@@ -98,8 +99,8 @@ int update_temp_sensor(struct watchdog *wd)
 	fclose(fp);
 
 	/* Calculate temperature */
-	wd->curr_temp =
-		(int) ((scale / 1000.0) * (((float) raw) + ((float) offset)));
+	wd->curr_temp = (int)
+		roundf((scale / 1000.0) * (((float) raw) + ((float) offset)));
 
 
 	return 0;
