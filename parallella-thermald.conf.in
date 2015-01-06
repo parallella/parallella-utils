@@ -1,0 +1,24 @@
+# parallella-thermald - Parallella Thermal Watchdog
+#
+# Disables Epiphany chip if system temperature gets to high/low.
+
+description	"Parallella Thermal Watchdog"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+respawn limit 10 5
+umask 022
+
+env EPIPHANY_HOME=/opt/adapteva/esdk
+
+console none
+
+pre-start script
+end script
+
+script
+    . $EPIPHANY_HOME/setup.sh
+    @parallella-thermald-path@ 2>&1 | logger -t parallella-thermald
+end script
