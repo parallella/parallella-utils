@@ -52,13 +52,10 @@ void sigterm_handler(int sig)
 
 int disable_chip()
 {
-#if 1
+#if DEBUG
 	printf("disable_chip(): Was called\n");
 #endif
-#if 0
 	return e_disable_system();
-#endif
-	return E_OK;
 }
 
 int update_temp_sensor(struct watchdog *wd)
@@ -231,11 +228,22 @@ int main()
 	fprintf(stderr, "Allowed temperature range [%d -- %d] C.\n",
 			wd.min_temp, wd.max_temp);
 
+	/* We need to call e_init() to initialize platform data */
+	rc = e_init(NULL);
+	if (rc != E_OK) {
+		fprintf(stderr, "ERROR: Failed to initialize Epiphany "
+				"platform.\n");
+		return rc;
+	}
+#if DEBUG
+	e_set_host_verbosity(H_D1);
+#endif
+
 	/* Make sure we can successfully disable the chip */
 	rc = disable_chip();
 	if (rc != E_OK) {
 		fprintf(stderr, "ERROR: Disabling Epiphany chip failed.\n");
-		return rc;
+		goto exit_e_finalize;
 	}
 
 	/* Ensure we can access the XADC temperature sensor */
@@ -262,6 +270,8 @@ int main()
 
 exit_disable_chip:
 	disable_chip();
+exit_e_finalize:
+	e_finalize();
 
 	return rc;
 
