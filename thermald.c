@@ -65,7 +65,7 @@ int disable_chip()
 #if DEBUG
 	printf("disable_chip(): Was called\n");
 #endif
-	return e_disable_system();
+	return ee_disable_system();
 }
 
 int update_temp_sensor(struct watchdog *wd)
