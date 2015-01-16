@@ -18,7 +18,7 @@ endif
 
 .PHONY: all clean install uninstall
 
-all: thermald
+all: thermald parallella-thermald.conf
 
 thermald: thermald.c
 
