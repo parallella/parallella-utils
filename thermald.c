@@ -11,8 +11,6 @@
 
 #include <e-hal.h>
 
-/* TODO: Check if we should log to stdout, stderr or both */
-
 #if TEST
 #ifndef DEBUG
 #define DEBUG 1
