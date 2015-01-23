@@ -12,7 +12,8 @@ respawn limit 10 5
 umask 022
 
 env EPIPHANY_HOME=/opt/adapteva/esdk
-#env THERMALD_MAX_TEMP 65
+# Uncomment below line to modify upper temperature limit
+#env THERMALD_MAX_TEMP 70
 
 console none
 

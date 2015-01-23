@@ -28,7 +28,7 @@
 
 /* In Celsius */
 #define DEFAULT_MIN_TEMP 0
-#define DEFAULT_MAX_TEMP 65
+#define DEFAULT_MAX_TEMP 70
 
 /* Allowed range for user specified THERMALD_{MIN,MAX}_TEMP environment
  * variables */
