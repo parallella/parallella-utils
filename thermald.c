@@ -226,6 +226,30 @@ void get_limits_from_env(struct watchdog *wd)
 
 }
 
+
+/* Hack: Doing a e_init() / e_reset_system() / e_finalize() salute will shut
+ * down the north, south, and west eLinks. */
+static int disable_nsw_elinks()
+{
+	int rc = E_OK;
+
+	rc = e_init(NULL);
+	if (rc != E_OK) {
+		fprintf(stderr, "ERROR: Failed to initialize Epiphany "
+				"platform.\n");
+		return rc;
+	}
+
+	rc = e_reset_system();
+	if (rc != E_OK) {
+		fprintf(stderr, "ERROR: e_reset_system() failed.\n");
+	}
+
+	e_finalize();
+
+	return rc;
+}
+
 int main()
 {
 	int rc;
@@ -238,6 +262,14 @@ int main()
 	fprintf(stderr, "Allowed temperature range [%d -- %d] C.\n",
 			wd.min_temp, wd.max_temp);
 
+
+	/* First, ensure chip is in lowest possible power state */
+	rc = disable_nsw_elinks();
+	if (rc != E_OK) {
+		fprintf(stderr, "ERROR: Failed to disable Epiphany eLinks\n");
+		return rc;
+	}
+
 	/* We need to call e_init() to initialize platform data */
 	rc = e_init(NULL);
 	if (rc != E_OK) {
@@ -245,6 +277,7 @@ int main()
 				"platform.\n");
 		return rc;
 	}
+
 #if DEBUG
 	e_set_host_verbosity(H_D1);
 #endif
