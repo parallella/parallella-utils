@@ -13,7 +13,7 @@ umask 022
 
 env EPIPHANY_HOME=/opt/adapteva/esdk
 # Uncomment below line to modify upper temperature limit
-#env THERMALD_MAX_TEMP 70
+#env THERMALD_MAX_TEMP=70
 
 console none
 
