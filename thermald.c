@@ -63,6 +63,7 @@ int disable_chip()
 #if DEBUG
 	printf("disable_chip(): Was called\n");
 #endif
+	sync();
 	return ee_disable_system();
 }
 
