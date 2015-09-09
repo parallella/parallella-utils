@@ -38,6 +38,18 @@ int GetTemp(float *);
   #define countof(x)  (sizeof(x)/sizeof(x[0]))
 #endif
 
+// for gdb
+
+void peek(uint32_t *p, int len)
+{
+    while (len--) {
+        printf("0x%x  ", *(p++));
+    }
+    printf("\n");
+}
+
+
+
 void usage();
 void GoUser();
 void GoAuto(char *cmdstr, int loop);
@@ -62,16 +74,18 @@ void ScriptTest();
 void TXSpeed();
 void ClockGate();
 
-int Dma1D(unsigned int srcaddr, unsigned int dstaddr, 
+int Dma1D(unsigned int srcaddr, unsigned int dstaddr,
 	  unsigned int count, unsigned int size);
 
 #define STRINGMAX  256
 #define EBASE      0x80800000
 #define ASHAREBASE 0x3E000000
-#define ESHAREBASE 0xBE000000
+#define ESHAREBASE 0x8E000000
 
 #define COLS 4
 #define ROWS 4
+
+#define COREADDR(a)  ((((a) & 0xC) << 24) | (((a) & 3) << 20))
 
 int  g_cautious = 1;
 int  g_auto = 0;
@@ -114,6 +128,16 @@ int main(int argc, char *argv[]) {
   char *strAuto = NULL, *strExec = NULL;
 
   printf("\n\tf-test Parallella Info/Debug\n\n");
+
+#ifdef BROKEN_64B_READS
+  printf("ATTENTION: Compiled with BROKEN_64B_READS\n");
+#endif
+#ifdef BROKEN_64B_WRITES
+  printf("ATTENTION: Compiled with BROKEN_64B_WRITES\n");
+#endif
+#ifdef SLOW_EPIPHANY_TX
+  printf("ATTENTION: Compiled with SLOW_EPIPHANY_TX\n");
+#endif
 
   opterr = 0;
 
@@ -239,24 +263,24 @@ void Registers() {
   while(1) {
 
     DumpFpgaRegs();
-    
+
     printf("\nSelect register to write (q to quit) > ");
     fgets(command, STRINGMAX, stdin);
     cmdnum = atoi(command);
     target = 0;
-    
+
     if((command[0] & 0x5F) == 'Q')
       break;
-    
+
     switch(cmdnum) {
-    case 0: 
+    case 0:
       if(command[0] == '0')  // Be sure it's legit
 	target = E_SYS_RESET;
       break;
     case 1: target = E_SYS_CFGTX; break;
     case 2: target = E_SYS_CFGRX; break;
     case 3: target = E_SYS_CFGCLK; break;
-    case 4: target = E_SYS_COREID; break;
+    case 4: target = E_SYS_CHIPID; break;
     case 5: target = E_SYS_VERSION; break;
     case 6: target = E_SYS_GPIOIN; break;
     case 7: target = E_SYS_GPIOOUT; break;
@@ -266,11 +290,11 @@ void Registers() {
       printf("ERROR: Please enter a valid selection\n");
       continue;
     }
-    
+
     printf("Value (hex) > 0x");
     fgets(command, STRINGMAX, stdin);
     cmdnum = strtol(command, NULL, 16);
-    
+
     ret = f_write(target, cmdnum);
     if(ret)
       printf("ERROR: f_write() returned %d\n", ret);
@@ -396,16 +420,17 @@ void ParseFpgaVersion(int version) {
 }
 
 void DumpFpgaRegs() {
-  int  ret, n=0;
+  int  ret = 0, n=0;
   unsigned int       resetn;
-  e_syscfg_tx_u      txcfg;
-  e_syscfg_rx_u      rxcfg;
-  e_syscfg_clk_u     clkcfg;
-  e_syscfg_coreid_u  coreid;
-  e_syscfg_version_u version;
+  e_sys_txcfg_t      txcfg;
+  e_sys_rxcfg_t      rxcfg;
+  e_sys_clkcfg_t     clkcfg;
+  e_sys_chipid_t     coreid;
+  e_sys_version_t    version;
   e_syscfg_gpio_u    gpioin, gpioout;
-  
+
   do {
+#if 0 /* TODO: Enable */
     ret = f_read(E_SYS_RESET, &resetn);
     if(ret) break;
     printf("%d> E_SYS_RESET:\t\t0x%08X\n", n++, resetn);
@@ -422,13 +447,15 @@ void DumpFpgaRegs() {
     if(ret) break;
     printf("%d> E_SYS_CFGCLK:\t0x%08X\n", n++, clkcfg.reg);
 
-    ret = f_read(E_SYS_COREID, &(coreid.reg));
+    ret = f_read(E_SYS_CHIPID, &(coreid.reg));
     if(ret) break;
-    printf("%d> E_SYS_COREID:\t0x%08X\n", n++, coreid.reg);
+    printf("%d> E_SYS_CHIPID:\t0x%08X\n", n++, coreid.reg);
+#endif
 
     ret = f_read(E_SYS_VERSION, &(version.reg));
     if(ret) break;
     printf("%d> E_SYS_VERSION:\t0x%08X\n", n++, version.reg);
+#if 0
 
     ret = f_read(E_SYS_GPIOIN, &(gpioin.reg));
     if(ret) break;
@@ -437,98 +464,90 @@ void DumpFpgaRegs() {
     ret = f_read(E_SYS_GPIOOUT, &(gpioout.reg));
     if(ret) break;
     printf("%d> E_SYS_GPIOOUT:\t0x%08X\n", n++, gpioout.reg);
+#endif
 
   } while(0);
 
   if(ret)
     printf("ERROR: f_read() returned %d.\n", ret);
-  
+
 }
 
 void Reset() {
-  unsigned int   resetcfg;
-  e_syscfg_tx_u  txcfg;
-  e_syscfg_rx_u  rxcfg;
-  e_syscfg_clk_u clkcfg;
-  int   ret;
+  e_sys_reset_t  resetcfg;
+  e_sys_txcfg_t  txcfg;
+  e_sys_rxcfg_t  rxcfg;
+  //e_sys_clkcfg_t clkcfg;
+  int   ret = 0;
 
   do {
-    /* // Get current values */
-    /* ret = f_read(E_SYS_RESET, &resetcfg); */
-    /* if(ret) break; */
 
-    /* ret = f_read(E_SYS_CFGTX, &txcfg.reg); */
-    /* if(ret) break; */
-  
-    /* ret = f_read(E_SYS_CFGRX, &rxcfg.reg); */
-    /* if(ret) break; */
-  
-    /* ret = f_read(E_SYS_CFGCLK, &clkcfg.reg); */
-    /* if(ret) break; */
-
-    printf("Asserting RESET\n");
-    resetcfg = 1;
-    ret = f_write(E_SYS_RESET, resetcfg);
+    resetcfg.reset = 1;
+    ret = f_write(E_SYS_RESET, resetcfg.reg);
     if(ret) break;
-    usleep(1000);
+//    usleep(10);
 
-    printf("Disabling TX & RX\n");
-    txcfg.reg = 0;
+    /* Do we need this ? */
+    resetcfg.reset = 0;
+    ret = f_write(E_SYS_RESET, resetcfg.reg);
+    if(ret) break;
+//    usleep(10);
+
+    uint32_t chipid = 0x808 /* >> 2 */;
+    ret = f_write(E_SYS_CHIPID, chipid /* << 2 */);
+    if(ret) break;
+//    usleep(10);
+
+    txcfg.enable = 1;
+    txcfg.mmu_enable = 0;
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
-    rxcfg.reg = 0;
+
+    rxcfg.enable = 1;
+    rxcfg.mmu_enable = 0;
+    rxcfg.mmu_cfg = 1; // "static" remap_addr
+    rxcfg.remap_mask = 0xfe0; // should be 0xfe0 ???
+    rxcfg.remap_base = 0x3e0;
     ret = f_write(E_SYS_CFGRX, rxcfg.reg);
     if(ret) break;
-    usleep(1000);
 
-    printf("Starting C-clock\n");
-    clkcfg.s.divider = 7;  // Full speed
-    ret = f_write(E_SYS_CFGCLK, clkcfg.reg);
-    if(ret) break;
+#if 0 // ?
+    rx_dmacfg.enable = 1;
+    if (sizeof(int) != ee_write_esys(E_SYS_RXDMACFG, rx_dmacfg.reg))
+      goto err;
     usleep(1000);
-  
-    printf("Stopping C-clock for setup/hold time on reset\n");
-    clkcfg.s.divider = 0;  // Stop!!!
-    ret = f_write(E_SYS_CFGCLK, clkcfg.reg);
-    if(ret) break;
-    usleep(1000);
-  
-    printf("Clearing RESET\n");
-    resetcfg = 0;
-    ret = f_write(E_SYS_RESET, resetcfg);
-    if(ret) break;
-    usleep(1000);
+#endif
 
-    printf("Re-starting C-clock\n");
-    clkcfg.s.divider = 7;  // Full speed
-    ret = f_write(E_SYS_CFGCLK, clkcfg.reg);
-    if(ret) break;
-    usleep(1000);
+    txcfg.ctrlmode = 0x5; /* Force east */
 
-    printf("Starting TX L-clock, enabling eLink TX\n");
-    txcfg.s.clkmode = 0; // Full speed
-    ret = f_write(E_SYS_CFGTX, txcfg.reg);
-    if(ret) break;
-    txcfg.s.enable = 1; // enable
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
 
-    printf("Enabling eLink RX\n");
-    rxcfg.s.enable = 1; // Enable
-    ret = f_write(E_SYS_CFGRX, rxcfg.reg);
+#ifdef SLOW_EPIPHANY_TX
+    uint32_t divider = 1; /* Divide by 4, see data sheet */
+#else
+    uint32_t divider = 0; /* Divide by 2, see data sheet */
+#endif
+    ret = f_write(EBASE + COREADDR((2<<2)+3) + 0xF0300, divider);
     if(ret) break;
-  
-  } while(0);
+
+    txcfg.ctrlmode = 0x0;
+    ret = f_write(E_SYS_CFGTX, txcfg.reg);
+    if(ret) break;
+
+  } while (0);
 
   if(ret)
     printf("ERROR: Got return value of %d\n", ret);
+
+//  usleep(10);
 
   printf("DONE\n");
 }
 
 void ToggleLed() {
   int            ret;
-  e_syscfg_tx_u  txcfg;
+  e_sys_txcfg_t  txcfg;
   static unsigned int led_state = 0;
 
   do {
@@ -540,20 +559,20 @@ void ToggleLed() {
     if(ret) break;
 
     //Set "direct north" routing mode to access north IO registers
-    txcfg.s.ctrlmode = 1;
+    txcfg.ctrlmode = 1;
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
 
     //Write to north IO registers
     ret = f_write(0x80AF030c, 0x03FFFFFF);
     if(ret) break;
-  
+
     ret = f_write(0x80AF0318, led_state);
     if(ret) break;
     led_state ^= 1;
 
     //Set config register back to normal
-    txcfg.s.ctrlmode = 0;
+    txcfg.ctrlmode = 0;
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
 
@@ -643,7 +662,7 @@ void MemTest() {
 
       for(n=0; n<256; n+=2)
 	*((long long int *)(data + n)) = ll;
-      
+
     } else {
 
       seed = time(NULL);
@@ -658,7 +677,7 @@ void MemTest() {
     fgets(command, STRINGMAX, stdin);
     loops = atoi(command);
   }
-  
+
   for(loop=1; loop<=loops; loop++) {
 
     errtotal = 0;
@@ -670,7 +689,7 @@ void MemTest() {
       errors = 0;
 
       for(m=0; m<32768; m+=1024) {
-    
+
 	//      printf("Core %d address 0x%X\n", core, EBASE + COREADDR(core));
 	//      sleep(2);
 	f_writearray(EBASE + COREADDR(core) + m, data, 1024);
@@ -680,8 +699,8 @@ void MemTest() {
 	  if(rdata[n] != data[n]) {
 
 	    if(loops == 1)
-	      printf("  0x%08X wanted 0x%08X got 0x%08X (0x%08X)\n", 
-		     EBASE+COREADDR(core)+m+(n*4), 
+	      printf("  0x%08X wanted 0x%08X got 0x%08X (0x%08X)\n",
+		     EBASE+COREADDR(core)+m+(n*4),
 		     data[n], rdata[n], data[n] ^ rdata[n]);
 
 	    allmask |= data[n] ^ rdata[n];
@@ -755,7 +774,7 @@ void PeekPoke() {
       last = arg1;
       arg1 = strchr(last+1, ' ');
     } while(arg1 == last + 1);
-    
+
     if(!arg1 && command[0] == 'W') {
       printf("Please enter both address & data separated by a space.\n");
       continue;
@@ -793,7 +812,7 @@ void PeekPoke() {
 
   } while(1);
 }
- 
+
 #define DESCADDR 0x1000
 
 void DmaTest() {
@@ -828,9 +847,11 @@ void DmaTest() {
       f_write(ASHAREBASE+4, 0x0);
 
       // source, dest, count, size
-      if(Dma1D(n, ESHAREBASE, 1, l))
+      if(Dma1D(n, ESHAREBASE, 1, l)) {
+        printf("ERROR!\n");
 	return;
-   
+      }
+
       f_read(ASHAREBASE, &data);
       f_read(ASHAREBASE+4, &datah);
       printf("Xfer %d/%d       -> 0x%08X:%08X\n", l, n, datah, data);
@@ -852,7 +873,7 @@ void DmaTest() {
       // source, dest, count, size
       if(Dma1D(0, ESHAREBASE+n, 1, l))
 	return;
-   
+
       f_read(ASHAREBASE, &data);
       f_read(ASHAREBASE+4, &datah);
       printf("Xfer %d/-%d      -> 0x%08X:%08X\n", l, n, datah, data);
@@ -899,7 +920,7 @@ void DmaTest() {
 
       if(Dma1D(ESHAREBASE+n, 0, 1, l))
 	return;
-   
+
       f_read(EBASE, &data);
       f_read(EBASE+4, &datah);
       printf("Xfer %d/%d       -> 0x%08X:%08X\n", l, n, datah, data);
@@ -920,7 +941,7 @@ void DmaTest() {
 
       if(Dma1D(ESHAREBASE, n, 1, l))
 	return;
-   
+
       f_read(EBASE, &data);
       f_read(EBASE+4, &datah);
       printf("Xfer %d/-%d      -> 0x%08X:%08X\n", l, n, datah, data);
@@ -1009,7 +1030,7 @@ void StreamTest() {
   printf("Reading destination buffer...\n");
   if(g_cautious)
     sleep(1);
-   
+
   f_read(ASHAREBASE, &datal);
   f_read(ASHAREBASE+4, &datah);
   printf("Xfer %d       -> 0x%08X:%08X\n", l, datah, datal);
@@ -1117,7 +1138,7 @@ void OlaTest() {
     fgets(command, STRINGMAX, stdin);
 
   }
-  
+
   if((command[0]&0x5F) == 'R') {
 
     printf("Testing \"Random\" reads over %d bytes.\n", OLABUFSIZE);
@@ -1133,9 +1154,9 @@ void OlaTest() {
 
     for (i=0; i < ROWS; i++, base += ((64-COLS)<<20)) {
       for (j=0; j < COLS; j++, base += (1<<20)) {
-	
+
 	printf("Testing core %d,%d\n", i, j);
-	
+
 	if(f_map_sz(base, (void **)&baseptr, NULL, OLABUFSIZE)) {
 	  printf("ERROR, can't map into Epiphany space\n");
 	  return;
@@ -1149,7 +1170,7 @@ void OlaTest() {
 
 	// Clear the read buffer
 	memset(rbuf, 0, sizeof(rbuf));
-	
+
 	// Read it back in "random" chunks
 	if (rbuf != memcpy_random(rbuf, (void *)baseptr, sizeof(buf))) {
 	  printf("memcpy_random() failed\n");
@@ -1191,9 +1212,9 @@ void OlaTest() {
 
     for (i=0; i < ROWS; i++, base += ((64-COLS)<<20)) {
       for (j=0; j < COLS; j++, base += (1<<20)) {
-	
+
 	printf("Testing core %d,%d\n", i, j);
-	
+
 	if(f_map_sz(base, (void **)&baseptr, NULL, OLABUFSIZE)) {
 	  printf("ERROR, can't map into Epiphany space\n");
 	  return;
@@ -1246,7 +1267,7 @@ void OlaTest2() {
   volatile uint8_t *p;
   volatile uint8_t *q;
   volatile uint8_t *base;
-  
+
   volatile uint64_t out[2] = { 0x0123456789abcdefULL, 0xfedcba9876543210ULL };
   volatile uint64_t in[2] = { 0 };
 
@@ -1280,7 +1301,7 @@ void OlaTest2() {
       if(g_cautious) sleep(1);
       p = base;
       q = (uint8_t *) in;
-      
+
       *q++ = *p++;
       *q++ = *p++;
       *((uint16_t *) q) = *((uint16_t *) p);
@@ -1314,11 +1335,11 @@ void OlaTest2() {
       memcpy((void *) q, (void *) p, 6);
       done = 1;  // last test
       break;
-      
+
     default:
       done = 1;
     }
-    
+
     printf("In:\t0x%llX 0x%llX\n",  out[0], out[1]);
     printf("Out:\t0x%llX 0x%llX\n", in[0],  in[1]);
     if(out[0] != in[0] || out[1] != in[1]) {
@@ -1391,7 +1412,7 @@ void ScriptTest() {
 
 void TXSpeed() {
   int            ret;
-  e_syscfg_tx_u  txcfg;
+  e_sys_txcfg_t  txcfg;
 
   printf("Setting Epiphany eLink TX speed to 1/2\n");
   usleep(100000);
@@ -1402,7 +1423,7 @@ void TXSpeed() {
     if(ret) break;
 
     // Set "Direct East" routing mode
-    txcfg.s.ctrlmode = 5;
+    txcfg.ctrlmode = 5;
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
 
@@ -1410,7 +1431,7 @@ void TXSpeed() {
     if(ret) break;
 
     // return to normal routing
-    txcfg.s.ctrlmode = 0;
+    txcfg.ctrlmode = 0;
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
 
@@ -1422,7 +1443,7 @@ void TXSpeed() {
     printf("Done\n");
 
 }
-    
+
 void ClockGate() {
   static int gateEnable = 0;
   unsigned core, data, addr;
@@ -1446,7 +1467,7 @@ void ClockGate() {
     printf("0x%08X <- 0x%08X\n", addr, data);
     f_write(addr, data);
 
-  }  
+  }
 }
 
 #if 0
@@ -1456,7 +1477,7 @@ void my_reset_system() {
   e_get_platform_info(&platform);
   ee_write_esys(E_SYS_RESET, 0);//reset
   usleep(200000);
-  
+
   //Open all cores
   e_open(&dev, 0, 0, platform.rows, platform.cols);
 
@@ -1467,21 +1488,21 @@ void my_reset_system() {
 
       ee_write_esys(E_SYS_CONFIG, 0x10000000);
       data = 0x000000FFF;
-      e_write(&dev, row, col, 0xf0304, &data, sizeof(int));  
+      e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
       data = 0x000000FFF;
-      e_write(&dev, row, col, 0xf0308, &data, sizeof(int));  
+      e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
       ee_write_esys(E_SYS_CONFIG, 0x00000000);
   }
-  
+
   //Shut down west link (WEST==2,0)
   if(1){
     row=2;
     col=0;
-    ee_write_esys(E_SYS_CONFIG, 0xd0000000);    
+    ee_write_esys(E_SYS_CONFIG, 0xd0000000);
     data = 0x000000FFF;
-    e_write(&dev, row, col, 0xf0304, &data, sizeof(int));      
+    e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
     data = 0x000000FFF;
-    e_write(&dev, row, col, 0xf0308, &data, sizeof(int));      
+    e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
     ee_write_esys(E_SYS_CONFIG, 0x00000000);
   }
 
@@ -1496,11 +1517,11 @@ void my_reset_system() {
       col=2;
     }
 
-    ee_write_esys(E_SYS_CONFIG, 0x90000000);    
+    ee_write_esys(E_SYS_CONFIG, 0x90000000);
     data = 0x000000FFF;
-    e_write(&dev, row, col, 0xf0304, &data, sizeof(int));      
+    e_write(&dev, row, col, 0xf0304, &data, sizeof(int));
     data = 0x000000FFF;
-    e_write(&dev, row, col, 0xf0308, &data, sizeof(int));      
+    e_write(&dev, row, col, 0xf0308, &data, sizeof(int));
     ee_write_esys(E_SYS_CONFIG, 0x00000000);
   }
 
@@ -1520,15 +1541,15 @@ void my_reset_system() {
     data = 0x1;
     e_write(&dev, row, col, 0xf0300, &data, sizeof(int));
     ee_write_esys(E_SYS_CONFIG, 0x00000000);
-  }  
+  }
 
  //Reset chip one more time (west side))
   if(0){
     row=2;
     col=0;
-    ee_write_esys(E_SYS_CONFIG, 0xd0000000);    
+    ee_write_esys(E_SYS_CONFIG, 0xd0000000);
     data = 0x000000001;
-    e_write(&dev, row, col, 0xf0324, &data, sizeof(int));      
+    e_write(&dev, row, col, 0xf0324, &data, sizeof(int));
     ee_write_esys(E_SYS_CONFIG, 0x00000000);
   }
 
@@ -1544,8 +1565,8 @@ void my_reset_system() {
 	e_write(&dev, i, j, 0xf0700, &data, sizeof(data));
       }
     }
-  }  
- 
+  }
+
   //Close down device
   e_close(&dev);
   return E_OK;
@@ -1553,7 +1574,7 @@ void my_reset_system() {
 
 #endif
 
-int Dma1D(unsigned int srcaddr, unsigned int dstaddr, 
+int Dma1D(unsigned int srcaddr, unsigned int dstaddr,
 	  unsigned int count, unsigned int size) {
   int n, stride;
   e_dma_stat_t  dmast;
@@ -1565,7 +1586,7 @@ int Dma1D(unsigned int srcaddr, unsigned int dstaddr,
 	  ((size & 3) << 5));  // 0=byte, 1=hword, 2=word, 3=dword
 
   stride = (1<<size) * 0x00010001;
-	  
+
   f_write(EBASE + DESCADDR + 4, stride);  // Inner stride dest:source
   f_write(EBASE + DESCADDR + 8, 0x00010000 + count);  // Count- outer:inner
   f_write(EBASE + DESCADDR +12, 0x00100010);  // Outer stride dest:source
@@ -1589,6 +1610,6 @@ int Dma1D(unsigned int srcaddr, unsigned int dstaddr,
       return -1;
     }
   }
-  
+
   return 0;
 }
