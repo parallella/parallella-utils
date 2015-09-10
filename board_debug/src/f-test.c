@@ -1038,8 +1038,11 @@ void StreamTest() {
   f_readarray(ASHAREBASE, (unsigned *)rdata, sizeof(rdata));
 
   for(n=0; n<(beats*(1<<l)/8); n++)
-    if(rdata[n] != data[n])
+    if(rdata[n] != data[n]) {
+        printf("i: %d want: 0x%.16jx got: 0x%.16jx\n", n, data[n], rdata[n]);
+
       errors++;
+    }
 
   printf("\nFound %d errors out of %d dwords.\n", errors, beats*(1<<l)/8);
   if(errors)
