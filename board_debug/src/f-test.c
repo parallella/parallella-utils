@@ -519,6 +519,7 @@ void Reset() {
 #endif
 
     txcfg.ctrlmode = 0x5; /* Force east */
+    txcfg.ctrlmode_select = 0x1;
 
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
@@ -531,6 +532,7 @@ void Reset() {
     ret = f_write(EBASE + COREADDR((2<<2)+3) + 0xF0300, divider);
     if(ret) break;
 
+    txcfg.ctrlmode_select = 0x0;
     txcfg.ctrlmode = 0x0;
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
