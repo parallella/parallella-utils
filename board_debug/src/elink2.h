@@ -32,11 +32,11 @@ typedef enum {
 	E_SYS_RESET     = E_SYS_REG_BASE + 0xF0200,
 	E_SYS_CFGCLK    = E_SYS_REG_BASE + 0xF0204,
 	E_SYS_CHIPID    = E_SYS_REG_BASE + 0xF0208,
-	E_SYS_GPIOOUT   = E_SYS_REG_BASE + 0xF0218, /* ETX_GPIO */
+	E_SYS_TXGPIO    = E_SYS_REG_BASE + 0xF0218, /* ETX_GPIO */
 	E_SYS_VERSION   = E_SYS_REG_BASE + 0xF020C,
 	E_SYS_CFGTX     = E_SYS_REG_BASE + 0xF0210,
 	E_SYS_CFGRX     = E_SYS_REG_BASE + 0xF0300,
-	E_SYS_GPIOIN    = E_SYS_REG_BASE + 0xF0308, /* ERX_GPIO */
+	E_SYS_RXGPIO    = E_SYS_REG_BASE + 0xF0308, /* ERX_GPIO */
 } e_sys_reg_id_t;
 
 // #include "/opt/adapteva/esdk/tools/host.armv7l/include/epiphany-hal-data.h"

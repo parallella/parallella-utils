@@ -282,8 +282,8 @@ void Registers() {
     case 3: target = E_SYS_CFGCLK; break;
     case 4: target = E_SYS_CHIPID; break;
     case 5: target = E_SYS_VERSION; break;
-    case 6: target = E_SYS_GPIOIN; break;
-    case 7: target = E_SYS_GPIOOUT; break;
+    case 6: target = E_SYS_RXGPIO; break;
+    case 7: target = E_SYS_TXGPIO; break;
     }
 
     if(!target) {
@@ -434,36 +434,48 @@ void DumpFpgaRegs() {
     ret = f_read(E_SYS_RESET, &resetn);
     if(ret) break;
     printf("%d> E_SYS_RESET:\t\t0x%08X\n", n++, resetn);
+#endif
 
+#if 1
     ret = f_read(E_SYS_CFGTX, &(txcfg.reg));
     if(ret) break;
     printf("%d> E_SYS_CFGTX:\t\t0x%08X\n", n++, txcfg.reg);
+#endif
 
+#if 1
     ret = f_read(E_SYS_CFGRX, &(rxcfg.reg));
     if(ret) break;
     printf("%d> E_SYS_CFGRX:\t\t0x%08X\n", n++, rxcfg.reg);
+#endif
 
+#if 0
     ret = f_read(E_SYS_CFGCLK, &(clkcfg.reg));
     if(ret) break;
     printf("%d> E_SYS_CFGCLK:\t0x%08X\n", n++, clkcfg.reg);
+#endif
 
+#if 0
     ret = f_read(E_SYS_CHIPID, &(coreid.reg));
     if(ret) break;
     printf("%d> E_SYS_CHIPID:\t0x%08X\n", n++, coreid.reg);
 #endif
 
+#if 0
     ret = f_read(E_SYS_VERSION, &(version.reg));
     if(ret) break;
     printf("%d> E_SYS_VERSION:\t0x%08X\n", n++, version.reg);
+#endif
+
+#if 1
+    ret = f_read(E_SYS_RXGPIO, &(gpioin.reg));
+    if(ret) break;
+    printf("%d> E_SYS_RXGPIO:\t0x%08X\n", n++, gpioin.reg);
+#endif
+
 #if 0
-
-    ret = f_read(E_SYS_GPIOIN, &(gpioin.reg));
+    ret = f_read(E_SYS_TXGPIO, &(gpioout.reg));
     if(ret) break;
-    printf("%d> E_SYS_GPIOIN:\t0x%08X\n", n++, gpioin.reg);
-
-    ret = f_read(E_SYS_GPIOOUT, &(gpioout.reg));
-    if(ret) break;
-    printf("%d> E_SYS_GPIOOUT:\t0x%08X\n", n++, gpioout.reg);
+    printf("%d> E_SYS_TXGPIO:\t0x%08X\n", n++, gpioout.reg);
 #endif
 
   } while(0);
