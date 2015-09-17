@@ -3,7 +3,7 @@
 #   -DBROKEN_64B_READS
 #   -DSLOW_EPIPHANY_TX
 
-CFLAGS=-Wall -g -DBROKEN_64B_WRITES
+CFLAGS=-Wall -g -DBROKEN_64B_WRITES -DBROKEN_64B_READS
 DESTDIR=../bin
 SOURCES=f-test.c f-link.c ztemp.c
 DEPS=$(SOURCES) elink2.h Makefile

@@ -26,6 +26,7 @@ along with this program, see the file COPYING. If not, see
 #include <unistd.h>
 #include <time.h>
 #include <stdint.h>
+#include <assert.h>
 
 #include "e_regs.h"
 #include "e_dma.h"
@@ -48,6 +49,98 @@ void peek(uint32_t *p, int len)
     printf("\n");
 }
 
+#if defined(BROKEN_64B_READS) || defined(BROKEN_64B_WRITES)
+#define memcpy aligned_memcpy
+static inline void *aligned_word_memcpy(uint32_t *__restrict__ dst,
+                const uint32_t *__restrict__ src, size_t size)
+{
+        void *ret = dst;
+
+        assert ((size % 4) == 0);
+        assert ((size == 0) || ((uintptr_t) src) % 4 == 0);
+        assert ((size == 0) || ((uintptr_t) dst) % 4 == 0);
+
+        size >>= 2;
+        while (size--)
+                *(dst++) = *(src++);
+
+        return ret;
+}
+
+static inline void *aligned_memcpy(void *__restrict__ dst,
+                const void *__restrict__ src, size_t size)
+{
+        size_t n, aligned_n;
+        uint8_t *d;
+        const uint8_t *s;
+
+        n = size;
+        d = (uint8_t *) dst;
+        s = (const uint8_t *) src;
+
+        if (!(((uintptr_t) d ^ (uintptr_t) s) & 3)) {
+                /* dst and src are evenly WORD (un-)aligned */
+
+                /* Align by WORD */
+                if (n && (((uintptr_t) d) & 1)) {
+                        *d++ = *s++; n--;
+                }
+                if (((uintptr_t) d) & 2) {
+                        if (n > 1) {
+                                *((uint16_t *) d) = *((const uint16_t *) s);
+                                d+=2; s+=2; n-=2;
+                        } else if (n==1) {
+                                *d++ = *s++; n--;
+                        }
+                }
+
+                aligned_n = n & (~3);
+                aligned_word_memcpy((uint32_t *) d, (uint32_t *) s, aligned_n);
+                d += aligned_n; s += aligned_n; n -= aligned_n;
+
+                /* Copy remainder in largest possible chunks */
+                switch (n) {
+                case 2:
+                        *((uint16_t *) d) = *((const uint16_t *) s);
+                        d+=2; s+=2; n-=2;
+                        break;
+                case 3:
+                        *((uint16_t *) d) = *((const uint16_t *) s);
+                        d+=2; s+=2; n-=2;
+                case 1:
+                        *d++ = *s++; n--;
+                }
+        } else if (!(((uintptr_t) d ^ (uintptr_t) s) & 1)) {
+                /* dst and src are evenly half-WORD (un-)aligned */
+
+                /* Align by half-WORD */
+                if (n && ((uintptr_t) d) & 1) {
+                        *d++ = *s++; n--;
+                }
+
+                while (n > 1) {
+                        *((uint16_t *) d) = *((const uint16_t *) s);
+                        d+=2; s+=2; n-=2;
+                }
+
+                /* Copy remaining byte */
+                if (n) {
+                        *d++ = *s++; n--;
+                }
+        } else {
+                /* Resort to single byte copying */
+                while (n) {
+                        *d++ = *s++; n--;
+                }
+        }
+
+        assert(n == 0);
+        assert((uintptr_t) dst + size == (uintptr_t) d);
+        assert((uintptr_t) src + size == (uintptr_t) s);
+
+        return dst;
+}
+#endif
 
 
 void usage();
