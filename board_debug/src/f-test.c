@@ -590,31 +590,37 @@ void Reset() {
     resetcfg.reset = 1;
     ret = f_write(E_SYS_RESET, resetcfg.reg);
     if(ret) break;
-//    usleep(10);
+    usleep(1000);
 
     /* Do we need this ? */
     resetcfg.reset = 0;
     ret = f_write(E_SYS_RESET, resetcfg.reg);
     if(ret) break;
-//    usleep(10);
+    usleep(1000);
 
     uint32_t chipid = 0x808 /* >> 2 */;
     ret = f_write(E_SYS_CHIPID, chipid /* << 2 */);
     if(ret) break;
-//    usleep(10);
+    usleep(1000);
 
     txcfg.enable = 1;
     txcfg.mmu_enable = 0;
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
+    usleep(1000);
 
+#if 0 // ABI Change bit[0] = testmode
     rxcfg.enable = 1;
+#endif
+    rxcfg.enable = 0;
     rxcfg.mmu_enable = 0;
     rxcfg.mmu_cfg = 1; // "static" remap_addr
     rxcfg.remap_mask = 0xfe0; // should be 0xfe0 ???
     rxcfg.remap_base = 0x3e0;
     ret = f_write(E_SYS_CFGRX, rxcfg.reg);
+    printf("rxcfg: 0x%x\n", rxcfg.reg);
     if(ret) break;
+    usleep(1000);
 
 #if 0 // ?
     rx_dmacfg.enable = 1;
@@ -628,6 +634,7 @@ void Reset() {
 
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
+    usleep(1000);
 
 #ifdef SLOW_EPIPHANY_TX
     uint32_t divider = 1; /* Divide by 4, see data sheet */
@@ -636,11 +643,13 @@ void Reset() {
 #endif
     ret = f_write(EBASE + COREADDR((2<<2)+3) + 0xF0300, divider);
     if(ret) break;
+    usleep(1000);
 
     txcfg.ctrlmode_select = 0x0;
     txcfg.ctrlmode = 0x0;
     ret = f_write(E_SYS_CFGTX, txcfg.reg);
     if(ret) break;
+    usleep(1000);
 
   } while (0);
 
