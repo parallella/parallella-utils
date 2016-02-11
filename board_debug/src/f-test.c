@@ -27,6 +27,7 @@ along with this program, see the file COPYING. If not, see
 #include <time.h>
 #include <stdint.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "e_regs.h"
 #include "e_dma.h"
@@ -172,7 +173,8 @@ int Dma1D(unsigned int srcaddr, unsigned int dstaddr,
 
 #define STRINGMAX  256
 #define EBASE      0x80800000
-#define ASHAREBASE 0x3E000000
+//#define ASHAREBASE 0x3E000000
+#define ASHAREBASE 0x8E000000
 #define ESHAREBASE 0x8E000000
 
 #define COLS 4
@@ -352,6 +354,7 @@ void Registers() {
   char command[STRINGMAX];
   unsigned  cmdnum, target;
   int  ret;
+  target = 0;
 
   while(1) {
 
@@ -553,7 +556,7 @@ void DumpFpgaRegs() {
     printf("%d> E_SYS_CHIPID:\t0x%08X\n", n++, coreid.reg);
 #endif
 
-#if 0
+#if 1
     ret = f_read(E_SYS_VERSION, &(version.reg));
     if(ret) break;
     printf("%d> E_SYS_VERSION:\t0x%08X\n", n++, version.reg);
@@ -953,6 +956,20 @@ void DmaTest() {
   printf("Starting value: 0x%08X:%08X\n", datah, data);
 
   for(l=0; l<4; l++) {  // try all different sizes
+    switch (l) {
+    case 0:
+        printf("Doing BYTE transfers\n"  "==============================\n\n");
+        break;
+    case 1:
+        printf("Doing SHORT transfers\n" "==============================\n\n");
+        break;
+    case 2:
+        printf("Doing WORD transfers\n"  "==============================\n\n");
+        break;
+    case 3:
+        printf("Doing DWORD transfers\n" "==============================\n\n");
+        break;
+    }
 
     mask = (l == 3) ? -1LL :
       ((1ULL << (8 << l)) - 1);
@@ -1151,7 +1168,11 @@ void StreamTest() {
   f_read(ASHAREBASE+4, &datah);
   printf("Xfer %d       -> 0x%08X:%08X\n", l, datah, datal);
 
-  f_readarray(ASHAREBASE, (unsigned *)rdata, sizeof(rdata));
+  if (f_readarray(ASHAREBASE, (unsigned *)rdata, sizeof(rdata))) {
+      perror("ERROR: Could not read from ERAM");
+      g_error++;
+      return;
+  }
 
   for(n=0; n<(beats*(1<<l)/8); n++)
     if(rdata[n] != data[n]) {
