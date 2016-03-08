@@ -28,65 +28,94 @@
 
 // New Epiphany system registers
 typedef enum {
-	E_SYS_REG_BASE  = 0x70000000,
-	E_SYS_RESET     = E_SYS_REG_BASE + 0x0040,
-	E_SYS_CFGTX     = E_SYS_REG_BASE + 0x0044,
-	E_SYS_CFGRX     = E_SYS_REG_BASE + 0x0048,
-	E_SYS_CFGCLK    = E_SYS_REG_BASE + 0x004C,
-	E_SYS_COREID    = E_SYS_REG_BASE + 0x0050,
-	E_SYS_VERSION   = E_SYS_REG_BASE + 0x0054,
-	E_SYS_GPIOIN    = E_SYS_REG_BASE + 0x0058,
-	E_SYS_GPIOOUT   = E_SYS_REG_BASE + 0x005C,
+	E_SYS_REG_BASE  = 0x81000000,
+	E_SYS_RESET     = E_SYS_REG_BASE + 0xF0200,
+	E_SYS_CFGCLK    = E_SYS_REG_BASE + 0xF0204,
+	E_SYS_CHIPID    = E_SYS_REG_BASE + 0xF0208,
+	E_SYS_TXGPIO    = E_SYS_REG_BASE + 0xF0218, /* ETX_GPIO */
+	E_SYS_VERSION   = E_SYS_REG_BASE + 0xF020C,
+	E_SYS_CFGTX     = E_SYS_REG_BASE + 0xF0210,
+	E_SYS_CFGRX     = E_SYS_REG_BASE + 0xF0300,
+	E_SYS_RXGPIO    = E_SYS_REG_BASE + 0xF0308, /* ERX_GPIO */
 } e_sys_reg_id_t;
 
-typedef struct e_syscfg_tx_st {
-  unsigned int   enable:1;
-  unsigned int   mmu:1;
-  unsigned int   mode:2;      // 0=Normal, 1=GPIO
-  unsigned int   ctrlmode:4;
-  unsigned int   clkmode:4;   // 0=Full speed, 1=1/2 speed
-  unsigned int   resvd:20;
-} e_syscfg_tx_t;
+// #include "/opt/adapteva/esdk/tools/host.armv7l/include/epiphany-hal-data.h"
 
 typedef union {
-  e_syscfg_tx_t s;  // Can't do anonymous structures in a union?
-  unsigned int reg;
-} e_syscfg_tx_u;
+	unsigned int reg;
+	struct {
+		unsigned int reset:1;
+//		unsigned int chip_reset:1;
+//		unsigned int reset:1;
+	};
+} e_sys_reset_t;
 
-typedef struct {
-  unsigned int  enable:1;
-  unsigned int  mmu:1;
-  unsigned int  path:2;    // 0=Normal, 1=GPIO, 2=Loopback
-  unsigned int  monitor:1;
-  unsigned int  resvd:27;
-} e_syscfg_rx_t;
 
 typedef union {
-  e_syscfg_rx_t s;
-  unsigned int reg;
-} e_syscfg_rx_u;
-
-typedef struct {
-  unsigned int  divider:4;  // 0=off, 1=F/64 ... 7=F/1
-  unsigned int  pll:4;      // TBD
-  unsigned int  resvd:24;
-} e_syscfg_clk_t;
-
-typedef union {
-  e_syscfg_clk_t s;
-  unsigned int  reg;
-} e_syscfg_clk_u;
-
-typedef struct {
-  unsigned int  col:6;
-  unsigned int  row:6;
-  unsigned int  resvd:20;
-} e_syscfg_coreid_t;
+	unsigned int reg;
+	struct {
+		unsigned int cclk_enable:1;
+		unsigned int lclk_enable:1;
+		unsigned int cclk_bypass:1;
+		unsigned int lclk_bypass:1;
+		unsigned int cclk_divider:4;
+		unsigned int lclk_divider:4;
+	};
+} e_sys_clkcfg_t;
 
 typedef union {
-  e_syscfg_coreid_t s;
-  unsigned int  reg;
-} e_syscfg_coreid_u;
+	unsigned int reg;
+	struct {
+		unsigned int col:6;
+		unsigned int row:6;
+	};
+} e_sys_chipid_t;
+
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int platform:8;
+		unsigned int revision:8;
+	};
+} e_sys_version_t;
+
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int enable:1;
+		unsigned int mmu_enable:1;
+		unsigned int mmu_cfg:2;
+		unsigned int ctrlmode:4;
+		unsigned int ctrlmode_select:1;
+		unsigned int transmit_mode:3;
+	};
+} e_sys_txcfg_t;
+
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int enable:1;
+		unsigned int mmu_enable:1;
+		unsigned int mmu_cfg:2;
+		unsigned int remap_mask:12;
+		unsigned int remap_base:12;
+		unsigned int timeout:2;
+	};
+} e_sys_rxcfg_t;
+
+typedef union {
+	unsigned int reg;
+	struct {
+		unsigned int enable:1;
+		unsigned int master_mode:1;
+		unsigned int __reserved1:3;
+		unsigned int width:2;
+		unsigned int __reserved2:3;
+		unsigned int message_mode:1;
+		unsigned int src_shift:1;
+		unsigned int dst_shift:1;
+	};
+} e_sys_rx_dmacfg_t;
 
 typedef struct {
   unsigned char  revision;

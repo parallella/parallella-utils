@@ -1,20 +1,21 @@
-CC=gcc
-CPP=g++
-CFLAGS=-Wall
-CLIBX=-lX11
-CPTHRD=-pthread
-CLIBRT=-lrt
-CLIBPP=-lstdc++
-CFLAGS_S=-Wall -static -g
+# Possible DEFINES:
+#   -DBROKEN_64B_WRITES
+#   -DBROKEN_64B_READS
+#   -DSLOW_EPIPHANY_TX
 
+CFLAGS=-Wall -g -DBROKEN_64B_WRITES -DBROKEN_64B_READS
 DESTDIR=../bin
+SOURCES=f-test.c f-link.c ztemp.c
+DEPS=$(SOURCES) elink2.h Makefile
 
-$(DESTDIR)/f-test: f-test.c f-link.c elink2.h ztemp.c
-	$(CC) -o $(DESTDIR)/f-test f-test.c f-link.c ztemp.c $(CFLAGS)
+$(DESTDIR)/f-test: $(DEPS)
+	$(CC) $(CFLAGS) $(SOURCES) -o $@
 
-static: $(DESTDIR)/f-test-static
-
-$(DESTDIR)/f-test-static: f-test.c f-link.c elink2.h ztemp.c
-	$(CC) -o $(DESTDIR)/f-test-static f-test.c f-link.c ztemp.c $(CFLAGS_S)
+$(DESTDIR)/f-test-static: $(DEPS)
+	$(CC) -static $(CFLAGS) $(SOURCES) -o $@
 
 .PHONY: static
+static: $(DESTDIR)/f-test-static
+
+clean:
+	rm -f $(DESTDIR)/f-test $(DESTDIR)f-test-static
