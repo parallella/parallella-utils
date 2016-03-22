@@ -148,7 +148,9 @@ int f_map(unsigned addr, void **ptr, unsigned *offset) {
   /* Open /dev/mem file if not already */
   /* Assume this will be closed on program exit */
   if(mem_fd < 1) {
-    mem_fd = open ("/dev/epiphany", O_RDWR);
+    mem_fd = open ("/dev/epiphany/mesh0", O_RDWR);
+    //mem_fd = open ("/dev/epiphany", O_RDWR);
+    //mem_fd = open ("/dev/mem", O_RDWR);
     if (mem_fd < 1) {
       perror("f_map");
       return -1;
@@ -164,8 +166,11 @@ int f_map(unsigned addr, void **ptr, unsigned *offset) {
   *ptr = mmap(NULL, page_size, PROT_READ|PROT_WRITE, MAP_SHARED, 
 	      mem_fd, page_addr);
 
-  if(*ptr == MAP_FAILED || !*ptr)
+  if(*ptr == MAP_FAILED || !*ptr) {
+    perror(NULL);
     return -2;
+  }
+
 
   return 0;
 }	
@@ -185,7 +190,9 @@ int f_map_sz(unsigned addr, void **ptr, unsigned *offset, unsigned size) {
   /* Open /dev/mem file if not already */
   /* Assume this will be closed on program exit */
   if(mem_fd < 1) {
-    mem_fd = open ("/dev/epiphany", O_RDWR);
+    mem_fd = open ("/dev/epiphany/elink0", O_RDWR);
+    //mem_fd = open ("/dev/epiphany", O_RDWR);
+    //mem_fd = open ("/dev/mem", O_RDWR);
     if (mem_fd < 1) {
       perror("f_map");
       return -1;
