@@ -1,6 +1,8 @@
 # parallella-thermald - Parallella Thermal Watchdog
 #
 # Disables Epiphany chip if system temperature gets to high/low.
+#
+# See /etc/default/parallella-thermald for settings
 
 description	"Parallella Thermal Watchdog"
 
@@ -12,8 +14,6 @@ respawn limit 10 5
 umask 022
 
 env EPIPHANY_HOME=/opt/adapteva/esdk
-# Uncomment below line to modify upper temperature limit
-#env THERMALD_MAX_TEMP=70
 
 console none
 
@@ -22,5 +22,6 @@ end script
 
 script
     . $EPIPHANY_HOME/setup.sh
+    [ -e /etc/default/parallella-thermald ] && . /etc/default/parallella-thermald
     @parallella-thermald-path@ 2>&1 | logger -t parallella-thermald
 end script

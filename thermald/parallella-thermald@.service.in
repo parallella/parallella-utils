@@ -1,0 +1,15 @@
+# parallella-thermald - Parallella Thermal Watchdog
+#
+# Disables Epiphany chip if system temperature gets to high/low.
+
+[Unit]
+Description="Parallella Thermal Watchdog"
+BindsTo=sys-devices-virtual-%i.device
+After=sys-devices-virtual-%i.device
+
+[Service]
+EnvironmentFile=-/etc/default/parallella-thermald
+Restart=on-failure
+RestartSec=10
+UMask=022
+ExecStart=@parallella-thermald-path@ /dev/%I

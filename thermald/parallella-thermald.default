@@ -1,0 +1,2 @@
+# Uncomment below line to modify upper temperature limit
+#THERMALD_MAX_TEMP=70

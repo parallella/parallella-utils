@@ -2,14 +2,15 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
 #include <math.h>
-
-#include <e-hal.h>
+#include <string.h>
+#include <misc/epiphany.h>
 
 #if TEST
 #ifndef DEBUG
@@ -24,14 +25,20 @@
 #define TEMP_OFFSET_PATH (TEMP_DIR "in_temp0_offset")
 #define TEMP_SCALE_PATH  (TEMP_DIR "in_temp0_scale")
 
+#define EPIPHANY_DEVICE "/dev/epiphany/mesh0"
+const char *epiphany_device = EPIPHANY_DEVICE;
+
 /* In Celsius */
 #define DEFAULT_MIN_TEMP 0
 #define DEFAULT_MAX_TEMP 70
 
+/* Will shutdown at this temperature */
+#define CRITICAL_MAX_TEMP 85
+
 /* Allowed range for user specified THERMALD_{MIN,MAX}_TEMP environment
  * variables */
 #define ENV_ALLOWED_MIN_TEMP DEFAULT_MIN_TEMP
-#define ENV_ALLOWED_MAX_TEMP 85
+#define ENV_ALLOWED_MAX_TEMP CRITICAL_MAX_TEMP
 
 
 /* Both in seconds */
@@ -51,20 +58,47 @@ struct watchdog {
 volatile sig_atomic_t exit_signaled = 0;
 
 
-void sigterm_handler(int sig)
+void signal_handler(int sig)
 {
 	(void) sig;
-	fprintf(stderr, "Got SIGTERM\n");
+	fprintf(stderr, "Got %s\n", strsignal(sig));
 	exit_signaled = 1;
 }
 
-int disable_chip()
+int disallow_mesh_access()
 {
+	int fd, rc;
+
 #if DEBUG
-	printf("disable_chip(): Was called\n");
+	printf(__func__ "(): Was called\n");
 #endif
-	sync();
-	return ee_disable_system();
+	fd = open(epiphany_device, O_RDWR);
+
+	rc = ioctl(fd, E_IOCTL_THERMAL_DISALLOW);
+
+	(void)(rc);
+
+	close(fd);
+
+	return 0;
+}
+
+int allow_mesh_access()
+{
+	int fd, rc;
+
+#if DEBUG
+	printf(__func__ "(): Was called\n");
+#endif
+	fd = open(epiphany_device, O_RDWR);
+
+	rc = ioctl(fd, E_IOCTL_THERMAL_ALLOW);
+
+	(void)(rc);
+
+	close(fd);
+
+	return 0;
 }
 
 int update_temp_sensor(struct watchdog *wd)
@@ -122,10 +156,25 @@ void print_warning(struct watchdog *wd, char *limit)
 			wd->max_temp);
 }
 
+void print_enable(struct watchdog *wd)
+{
+	fprintf(stderr, "Enabling Epiphany chip. Temperature [%d C] is within"
+			" allowed range [[%d -- %d] C].\n",
+			wd->curr_temp, wd->min_temp, wd->max_temp);
+}
+
+void print_shutdown(struct watchdog *wd)
+{
+	fprintf(stderr, "SHUTTING DOWN SYSTEM! Temperature [%d C] is above"
+			" MAX CRITICAL TEMPERATURE [%d C].\n",
+			wd->curr_temp, CRITICAL_MAX_TEMP);
+}
+
+
 int mainloop(struct watchdog *wd)
 {
 	int rc, last_warning;
-	bool should_warn;
+	bool should_warn, enable_next = true, disallowed = false;
 
 	last_warning = -1;
 
@@ -154,7 +203,8 @@ int mainloop(struct watchdog *wd)
 			} else {
 				last_warning += MAINLOOP_ITERATION_INTERVAL;
 			}
-			disable_chip();
+			disallowed = true;
+			disallow_mesh_access();
 		} else if (wd->curr_temp > wd->max_temp) {
 			if (should_warn) {
 				print_warning(wd, "above");
@@ -162,9 +212,29 @@ int mainloop(struct watchdog *wd)
 			} else {
 				last_warning += MAINLOOP_ITERATION_INTERVAL;
 			}
-			disable_chip();
+			disallowed = true;
+			disallow_mesh_access();
+
+			if (wd->curr_temp > CRITICAL_MAX_TEMP) {
+				print_shutdown(wd);
+				sync();
+				system("shutdown -h now");
+			}
 		} else {
 			last_warning = -1;
+			if (disallowed) {
+				/* Give it some time to cool down */
+				sleep(MAINLOOP_WARN_INTERVAL);
+				disallowed = false;
+				enable_next = true;
+				continue;
+			} else {
+				if (enable_next) {
+					print_enable(wd);
+					enable_next = false;
+				}
+				allow_mesh_access();
+			}
 		}
 
 		sleep(MAINLOOP_ITERATION_INTERVAL);
@@ -225,31 +295,7 @@ void get_limits_from_env(struct watchdog *wd)
 
 }
 
-
-/* Hack: Doing a e_init() / e_reset_system() / e_finalize() salute will shut
- * down the north, south, and west eLinks. */
-static int disable_nsw_elinks()
-{
-	int rc = E_OK;
-
-	rc = e_init(NULL);
-	if (rc != E_OK) {
-		fprintf(stderr, "ERROR: Failed to initialize Epiphany "
-				"platform.\n");
-		return rc;
-	}
-
-	rc = e_reset_system();
-	if (rc != E_OK) {
-		fprintf(stderr, "ERROR: e_reset_system() failed.\n");
-	}
-
-	e_finalize();
-
-	return rc;
-}
-
-int main()
+int main(int argc, char **argv)
 {
 	int rc;
 	DECLARE_WATCHDOG(wd);
@@ -261,31 +307,25 @@ int main()
 	fprintf(stderr, "Allowed temperature range [%d -- %d] C.\n",
 			wd.min_temp, wd.max_temp);
 
+	if (argc > 1)
+		epiphany_device = argv[1];
 
-	/* First, ensure chip is in lowest possible power state */
-	rc = disable_nsw_elinks();
-	if (rc != E_OK) {
-		fprintf(stderr, "ERROR: Failed to disable Epiphany eLinks\n");
-		return rc;
-	}
-
-	/* We need to call e_init() to initialize platform data */
-	rc = e_init(NULL);
-	if (rc != E_OK) {
-		fprintf(stderr, "ERROR: Failed to initialize Epiphany "
-				"platform.\n");
-		return rc;
-	}
+	fprintf(stderr, "Using %s\n", epiphany_device);
 
 #if DEBUG
 	e_set_host_verbosity(H_D1);
 #endif
 
-	/* Make sure we can successfully disable the chip */
-	rc = disable_chip();
-	if (rc != E_OK) {
+	/* Check that we can enable/disable access to the mesh */
+	rc = disallow_mesh_access();
+	if (rc) {
 		fprintf(stderr, "ERROR: Disabling Epiphany chip failed.\n");
-		goto exit_e_finalize;
+		return rc;
+	}
+	rc = allow_mesh_access();
+	if (rc) {
+		fprintf(stderr, "ERROR: Enabling Epiphany chip failed.\n");
+		goto out;
 	}
 
 	/* Ensure we can access the XADC temperature sensor */
@@ -295,12 +335,12 @@ int main()
 		fprintf(stderr, "Make sure to compile your kernel with"
 			" \"CONFIG_IIO=y\" and \"CONFIG_XILINX_XADC=y\".\n");
 
-		goto exit_disable_chip;
+		goto out;
 	}
 
 	/* Set up SIGTERM handler */
-	signal (SIGTERM, sigterm_handler);
-
+	signal (SIGTERM, signal_handler);
+	signal (SIGINT, signal_handler);
 
 	fprintf(stderr, "Entering mainloop.\n");
 	rc = mainloop(&wd);
@@ -310,11 +350,7 @@ int main()
 		fprintf(stderr, "Exiting normally\n");
 	}
 
-exit_disable_chip:
-	disable_chip();
-exit_e_finalize:
-	e_finalize();
-
+out:
+	allow_mesh_access();
 	return rc;
-
 }
