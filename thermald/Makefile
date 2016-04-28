@@ -11,7 +11,7 @@ EXTRA_CFLAGS := $(CFLAGS)
 CFLAGS  := -Wall -g $(EXTRA_CFLAGS)
 LDLIBS  := $(LDFLAGS) -lm
 
-ARCH    ?= $(shell uname -p)
+ARCH    ?= $(shell uname -m)
 ifneq ($(ARCH), armv7l)
 	CC := $(CROSS_COMPILE)gcc
 endif
