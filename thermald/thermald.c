@@ -24,12 +24,10 @@
 #endif
 #define TEMP_DIR         "/tmp/thermald/"
 #else
-#define TEMP_DIR         "/sys/bus/iio/devices/iio:device0/"
+#define TEMP_DIR         "/sys/class/hwmon/hwmon0/"
 #endif
 
-#define TEMP_RAW_PATH    (TEMP_DIR "in_temp0_raw")
-#define TEMP_OFFSET_PATH (TEMP_DIR "in_temp0_offset")
-#define TEMP_SCALE_PATH  (TEMP_DIR "in_temp0_scale")
+#define TEMP_INPUT_PATH  (TEMP_DIR "temp1_input")
 
 #define EPIPHANY_DEVICE "/dev/epiphany/mesh0"
 const char *epiphany_device = EPIPHANY_DEVICE;
@@ -112,47 +110,28 @@ int allow_mesh_access()
 int update_temp_sensor(struct watchdog *wd)
 {
 	FILE *fp;
-	int rc, raw, offset;
-	float scale;
+	int rc, millicelsius;
 
-	/* Get raw temperature */
-	fp = fopen(TEMP_RAW_PATH, "r");
+	fp = fopen(TEMP_INPUT_PATH, "r");
 	if (fp == NULL)
 		return errno;
 
-	rc = fscanf(fp, "%d", &raw);
-	if (rc != 1)
+	/* Get temperature in millicelsius */
+	rc = fscanf(fp, "%d", &millicelsius);
+	if (rc != 1) {
+		fclose(fp);
 		return ENODATA;
+	}
+
+	/* Round to nearest */
+	wd->curr_temp = (millicelsius + 500) / 1000;
 
 	fclose(fp);
 
-	/* Get offset */
-	fp = fopen(TEMP_OFFSET_PATH, "r");
-	if (fp == NULL)
-		return errno;
-
-	rc = fscanf(fp, "%d", &offset);
-	if (rc != 1)
-		return ENODATA;
-
-	fclose(fp);
-
-	/* Get scale */
-	fp = fopen(TEMP_SCALE_PATH, "r");
-	if (fp == NULL)
-		return errno;
-
-	rc = fscanf(fp, "%f", &scale);
-	if (rc != 1)
-		return ENODATA;
-
-	fclose(fp);
-
-	/* Calculate temperature */
-	wd->curr_temp = (int)
-		roundf((scale / 1000.0) * (((float) raw) + ((float) offset)));
-
-
+#if DEBUG
+	printf("%s(): Current temp: %d\n", __func__, wd->curr_temp);
+	fflush(stdout);
+#endif
 	return 0;
 }
 
@@ -333,15 +312,15 @@ int main(int argc, char **argv)
 		goto out;
 	}
 
-	/* Ensure we can access the XADC temperature sensor */
+	/* Ensure we can access the XADC temperature sensor (via hwmon) */
 	rc = update_temp_sensor(&wd);
 	if (rc) {
 		perror("ERROR: Temperature sensor sysfs entries not present");
-		fprintf(stderr, "Make sure to compile your kernel with"
-			" \"CONFIG_IIO=y\" and \"CONFIG_XILINX_XADC=y\".\n");
+		fprintf(stderr, "Make sure to compile your kernel with \"CONFIG_IIO=y\", \"CONFIG_XILINX_XADC=y\", \"CONFIG_HWMON=y\", and \"CONFIG_SENSORS_IIO_HWMON=y\".\n");
 
 		goto out;
 	}
+
 
 	/* Set up SIGTERM handler */
 	signal (SIGTERM, signal_handler);
