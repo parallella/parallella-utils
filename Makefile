@@ -5,51 +5,63 @@ CLIBX=-lX11
 CPTHRD=-pthread
 CLIBRT=-lrt
 CLIBPP=-lstdc++
-GPIOSRCS=para_morse.c para_gpio.c
-GPIODEPS=Makefile $(GPIOSRCS) para_morse.h para_gpio.h
+GPIOSRCS=gpio_dir/para_morse.c gpio_dir/para_gpio.c
+GPIODEPS=Makefile $(GPIOSRCS) gpio_dir/para_morse.h gpio_dir/para_gpio.h
 
-DESTDIR = 
-PREFIX  = "/usr/local"
-DATADIR = "${PREFIX}/share/parallella"
-MANDIR  = "${PREFIX}/share/man"
-BINDIR  = "${PREFIX}/bin"
+DESTDIR ?=
+PREFIX  ?= /usr/local
+DATADIR = $(PREFIX)/share/parallella
+MANDIR  = $(PREFIX)/share/man
+BINDIR  = $(PREFIX)/bin
 
-all: xtemp pmorse
+all: xtemp/xtemp pmorse
 
-everything: xtemp pmorse gpiotest porcutest spitest facetest
+everything: xtemp/xtemp pmorse gpiotest porcutest spitest facetest
 
-xtemp: xtemp.c
-	$(CC) -o xtemp xtemp.c $(CFLAGS) $(CLIBX) $(CPTHRD)
+xtemp_SRCS=xtemp/xtemp.c
+xtemp_DEPS=Makefile $(xtemp_SRCS)
+xtemp/xtemp: $(xtemp_DEPS)
+	$(CC) $(xtemp_SRCS) $(CFLAGS) $(CLIBX) $(CPTHRD) -o $@
 
-pmorse: pmorse.c $(GPIODEPS)
-	$(CC) -o pmorse pmorse.c $(GPIOSRCS) $(CFLAGS)
+pmorse_SRCS=gpio_dir/pmorse.c $(GPIOSRCS)
+pmorse_DEPS=Makefile $(pmorse_SRCS) $(GPIODEPS)
+pmorse: $(pmorse_DEPS)
+	$(CC) $(pmorse_SRCS) $(CFLAGS) -o $@
 
-gpiotest: gpiotest.c $(GPIODEPS)
-	$(CC) -o gpiotest gpiotest.c $(GPIOSRCS) $(CFLAGS) $(CLIBRT)
+gpiotest_SRCS=gpio_dir/gpiotest.c $(GPIOSRCS)
+gpiotest_DEPS=Makefile $(gpiotest_SRCS)
+gpiotest: $(gpiotest_DEPS)
+	$(CC) $(gpiotest_SRCS) $(CFLAGS) $(CLIBRT) -o $@
 
-porcutest: porcutest.cpp para_gpio.c para_gpio.cpp
-	$(CC) -o porcutest porcutest.cpp para_gpio.c para_gpio.cpp $(CLIBPP) $(CFLAGS)
+porcutest_SRCS=gpio_dir/porcutest.cpp gpio_dir/para_gpio.cpp gpio_dir/para_gpio.c
+porcutest_DEPS=Makefile $(porcutest_SRCS)
+porcutest: $(porcutest_DEPS)
+	$(CC) $(porcutest_SRCS) $(CLIBPP) $(CFLAGS) -o $@
 
-spitest: spitest.cpp para_spi.cpp para_spi.h para_gpio.c para_gpio.cpp para_gpio.h
-	$(CC) -o spitest spitest.cpp para_spi.cpp para_gpio.cpp para_gpio.c $(CLIBPP) $(CFLAGS)
+spitest_SRCS=gpio_dir/spitest.cpp gpio_dir/para_spi.cpp gpio_dir/para_gpio.c gpio_dir/para_gpio.cpp
+spitest_DEPS=Makefile gpio_dir/para_spi.h gpio_dir/para_gpio.h
+spitest: $(spitest_DEPS)
+	$(CC) $(spitest_SRCS) $(CLIBPP) $(CFLAGS) -o $@
 
-facetest: facetest.cpp para_face.cpp para_face.h para_spi.cpp para_spi.h para_gpio.c para_gpio.cpp para_gpio.h
-	$(CC) -o facetest facetest.cpp para_face.cpp para_spi.cpp para_gpio.cpp para_gpio.c $(CLIBPP) $(CFLAGS)
+facetest_SRCS=gpio_dir/facetest.cpp gpio_dir/para_face.cpp gpio_dir/para_spi.cpp gpio_dir/para_gpio.c gpio_dir/para_gpio.cpp
+facetest_DEPS=Makefile gpio_dir/para_face.h gpio_dir/para_spi.h gpio_dir/para_gpio.h $(facetest_SRCS)
+facetest: $(facetest_DEPS)
+	$(CC) $(facetest_SRCS) $(CLIBPP) $(CFLAGS) -o $@
 
 clean:
-	rm -f xtemp pmorse gpiotest porcutest spitest facetest
+	rm -f xtemp/xtemp pmorse gpiotest porcutest spitest facetest
 
 install: install-exec
 
-install-exec: xtemp pmorse
-	install -D xtemp "${DESTDIR}${BINDIR}/xtemp"
-	install -D pmorse "${DESTDIR}${BINDIR}/pmorse"
+install-exec: xtemp/xtemp pmorse
+	install -D xtemp/xtemp "$(DESTDIR)$(BINDIR)/xtemp"
+	install -D pmorse "$(DESTDIR)$(BINDIR)/pmorse"
 
 uninstall: uninstall-exec
 
 uninstall-exec:
-	rm "${DESTDIR}${BINDIR}/xtemp"
-	rm "${DESTDIR}${BINDIR}/pmorse"
+	rm "$(DESTDIR)$(BINDIR)/xtemp"
+	rm "$(DESTDIR)$(BINDIR)/pmorse"
 
 .PHONY: clean install install-exec uninstall uninstall-exec
 
