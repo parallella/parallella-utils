@@ -76,7 +76,8 @@ int disallow_mesh_access()
 	int fd, rc;
 
 #if DEBUG
-	printf(__func__ "(): Was called\n");
+	printf("%s(): Was called\n", __func__ );
+	fflush(stdout);
 #endif
 	fd = open(epiphany_device, O_RDWR);
 
@@ -94,7 +95,8 @@ int allow_mesh_access()
 	int fd, rc;
 
 #if DEBUG
-	printf(__func__ "(): Was called\n");
+	printf("%s(): Was called\n", __func__ );
+	fflush(stdout);
 #endif
 	fd = open(epiphany_device, O_RDWR);
 
@@ -318,9 +320,6 @@ int main(int argc, char **argv)
 
 	fprintf(stderr, "Using %s\n", epiphany_device);
 
-#if DEBUG
-	e_set_host_verbosity(H_D1);
-#endif
 
 	/* Check that we can enable/disable access to the mesh */
 	rc = disallow_mesh_access();
