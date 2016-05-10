@@ -12,12 +12,6 @@
 #include <string.h>
 #include <misc/epiphany.h>
 
-/* Work around missing IOCTLs in Pubuntu / ESDK 2016.3 */
-#ifndef E_IOCTL_THERMAL_DISALLOW
-#define E_IOCTL_THERMAL_DISALLOW	E_IO(0x06)
-#define E_IOCTL_THERMAL_ALLOW		E_IO(0x07)
-#endif
-
 #if TEST
 #ifndef DEBUG
 #define DEBUG 1
