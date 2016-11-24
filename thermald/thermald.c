@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <math.h>
 #include <string.h>
-#include <misc/epiphany.h>
 
 #if TEST
 #ifndef DEBUG
@@ -31,7 +30,7 @@ const char *epiphany_device = EPIPHANY_DEVICE;
 #define DEFAULT_MAX_TEMP 70
 
 /* Will shutdown at this temperature */
-#define CRITICAL_MAX_TEMP 85
+#define CRITICAL_MAX_TEMP 70
 
 /* Allowed range for user specified THERMALD_{MIN,MAX}_TEMP environment
  * variables */
@@ -63,44 +62,6 @@ void signal_handler(int sig)
 	exit_signaled = 1;
 }
 
-int disallow_mesh_access()
-{
-	int fd, rc;
-
-#if DEBUG
-	printf("%s(): Was called\n", __func__ );
-	fflush(stdout);
-#endif
-	fd = open(epiphany_device, O_RDWR);
-
-	rc = ioctl(fd, E_IOCTL_THERMAL_DISALLOW);
-
-	(void)(rc);
-
-	close(fd);
-
-	return 0;
-}
-
-int allow_mesh_access()
-{
-	int fd, rc;
-
-#if DEBUG
-	printf("%s(): Was called\n", __func__ );
-	fflush(stdout);
-#endif
-	fd = open(epiphany_device, O_RDWR);
-
-	rc = ioctl(fd, E_IOCTL_THERMAL_ALLOW);
-
-	(void)(rc);
-
-	close(fd);
-
-	return 0;
-}
-
 int update_temp_sensor(struct watchdog *wd)
 {
 	FILE *fp;
@@ -129,7 +90,7 @@ int update_temp_sensor(struct watchdog *wd)
 	return 0;
 }
 
-void print_warning(struct watchdog *wd, char *limit)
+void print_warning(struct watchdog *wd, const char *limit)
 {
 	fprintf(stderr, "Disabling Epiphany chip. Temperature [%d C] is %s"
 			" allowed range [[%d -- %d] C].\n",
@@ -148,16 +109,15 @@ void print_shutdown(struct watchdog *wd)
 {
 	fprintf(stderr, "SHUTTING DOWN SYSTEM! Temperature [%d C] is above"
 			" MAX CRITICAL TEMPERATURE [%d C].\n",
-			wd->curr_temp, CRITICAL_MAX_TEMP);
+			wd->curr_temp, wd->max_temp);
 }
 
 
 int mainloop(struct watchdog *wd)
 {
-	int rc, last_warning;
-	bool should_warn, enable_next = true, disallowed = false;
-
-	last_warning = -1;
+	int rc;
+	bool shutdown;
+	const char *limit;
 
 	while (!exit_signaled) {
 		rc = update_temp_sensor(wd);
@@ -166,56 +126,22 @@ int mainloop(struct watchdog *wd)
 			sleep(1);
 			rc = update_temp_sensor(wd);
 			if (rc) {
-				perror("ERROR: Failed to update temperature"
-						" sensor value\n");
+				perror("ERROR: Failed to update temperature sensor value\n");
 				return rc;
 			}
 		}
 
-		/* Limit log spamming */
-		should_warn = (last_warning < 0 ||
-				last_warning >= MAINLOOP_WARN_INTERVAL) ?
-			true : false;
+		shutdown  = wd->curr_temp < wd->min_temp;
+		shutdown |= wd->curr_temp > wd->max_temp;
 
-		if (wd->min_temp > wd->curr_temp) {
-			if (should_warn) {
-				print_warning(wd, "below");
-				last_warning = 0;
-			} else {
-				last_warning += MAINLOOP_ITERATION_INTERVAL;
-			}
-			disallowed = true;
-			disallow_mesh_access();
-		} else if (wd->curr_temp > wd->max_temp) {
-			if (should_warn) {
-				print_warning(wd, "above");
-				last_warning = 0;
-			} else {
-				last_warning += MAINLOOP_ITERATION_INTERVAL;
-			}
-			disallowed = true;
-			disallow_mesh_access();
+		if (shutdown) {
+			limit = wd->curr_temp <= wd->min_temp ?
+				"below" : "above";
+			print_warning(wd, limit);
 
-			if (wd->curr_temp > CRITICAL_MAX_TEMP) {
-				print_shutdown(wd);
-				sync();
-				system("shutdown -h now");
-			}
-		} else {
-			last_warning = -1;
-			if (disallowed) {
-				/* Give it some time to cool down */
-				sleep(MAINLOOP_WARN_INTERVAL);
-				disallowed = false;
-				enable_next = true;
-				continue;
-			} else {
-				if (enable_next) {
-					print_enable(wd);
-					enable_next = false;
-				}
-				allow_mesh_access();
-			}
+			print_shutdown(wd);
+			sync();
+			system("shutdown -h now");
 		}
 
 		sleep(MAINLOOP_ITERATION_INTERVAL);
@@ -293,28 +219,14 @@ int main(int argc, char **argv)
 
 	fprintf(stderr, "Using %s\n", epiphany_device);
 
-
-	/* Check that we can enable/disable access to the mesh */
-	rc = disallow_mesh_access();
-	if (rc) {
-		fprintf(stderr, "ERROR: Disabling Epiphany chip failed.\n");
-		return rc;
-	}
-	rc = allow_mesh_access();
-	if (rc) {
-		fprintf(stderr, "ERROR: Enabling Epiphany chip failed.\n");
-		goto out;
-	}
-
 	/* Ensure we can access the XADC temperature sensor (via hwmon) */
 	rc = update_temp_sensor(&wd);
 	if (rc) {
 		perror("ERROR: Temperature sensor sysfs entries not present");
 		fprintf(stderr, "Make sure to compile your kernel with \"CONFIG_IIO=y\", \"CONFIG_XILINX_XADC=y\", \"CONFIG_HWMON=y\", and \"CONFIG_SENSORS_IIO_HWMON=y\".\n");
 
-		goto out;
+		return rc;
 	}
-
 
 	/* Set up SIGTERM handler */
 	signal (SIGTERM, signal_handler);
@@ -328,7 +240,5 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Exiting normally\n");
 	}
 
-out:
-	allow_mesh_access();
 	return rc;
 }
