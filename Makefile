@@ -16,7 +16,7 @@ BINDIR  = $(PREFIX)/bin
 
 all: xtemp/xtemp pmorse
 
-everything: xtemp/xtemp pmorse gpiotest porcutest spitest facetest
+everything: xtemp/xtemp pmorse gpiotest porcutest spitest facetest getfpga/getfpga
 
 xtemp_SRCS=xtemp/xtemp.c
 xtemp_DEPS=Makefile $(xtemp_SRCS)
@@ -48,8 +48,11 @@ facetest_DEPS=Makefile gpio_dir/para_face.h gpio_dir/para_spi.h gpio_dir/para_gp
 facetest: $(facetest_DEPS)
 	$(CC) $(facetest_SRCS) $(CLIBPP) $(CFLAGS) -o $@
 
+getfpga/getfpga: getfpga/getfpga.c
+	$(CC) $< $(CFLAGS) -o $@
+
 clean:
-	rm -f xtemp/xtemp pmorse gpiotest porcutest spitest facetest
+	rm -f xtemp/xtemp pmorse gpiotest porcutest spitest facetest getfpga/getfpga
 
 install: install-exec
 
